@@ -4,6 +4,7 @@ __pycache__/
 .DS_Store
 
 .ml_physics_crawler_state/
+library/
 
 *.summary.txt
 *.summary.json.txt
