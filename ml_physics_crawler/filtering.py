@@ -160,6 +160,8 @@ def merge_records(primary: PaperRecord, secondary: PaperRecord) -> PaperRecord:
         primary.review_notes = secondary.review_notes
     if not primary.reviewed_at and secondary.reviewed_at:
         primary.reviewed_at = secondary.reviewed_at
+    if not primary.doi and secondary.doi:
+        primary.doi = secondary.doi
 
     if primary.ai_score is None and secondary.ai_score is not None:
         primary.ai_score = secondary.ai_score

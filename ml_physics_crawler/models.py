@@ -25,6 +25,8 @@ class CrawlConfig:
     recall_mode: str = "broad"
     download_approved_pdfs: bool = False
     pdf_dir: str = "library/pdfs"
+    export_approved_bibtex: bool = False
+    bibtex_file: str | None = None
 
 
 @dataclass
@@ -43,6 +45,7 @@ class PaperRecord:
     authors: list[str]
     abstract: str
     journal: str
+    doi: str
     article_url: str
     pdf_url: str
     published: str

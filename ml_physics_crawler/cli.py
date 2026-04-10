@@ -7,6 +7,7 @@ from pathlib import Path
 
 from .ai_filter import apply_ai_filter
 from .arxiv import crawl_arxiv
+from .bibtex import build_approved_bibtex_filename, export_approved_bibtex
 from .filtering import deduplicate
 from .models import CrawlConfig, PaperRecord, RunPlan
 from .output import save_records
@@ -61,6 +62,8 @@ def parse_args() -> CrawlConfig:
     parser.add_argument("--ai-min-score", type=int, default=60, help="AI 保留论文的最低分数阈值。")
     parser.add_argument("--download-approved-pdfs", action="store_true", help="只下载 review_status=approved 的 PDF，并按主题分类保存。")
     parser.add_argument("--pdf-dir", default="library/pdfs", help="approved PDF 的保存目录。")
+    parser.add_argument("--export-approved-bibtex", action="store_true", help="导出 review_status=approved 的 BibTeX 文件，便于导入 Zotero。")
+    parser.add_argument("--bibtex-file", help="approved BibTeX 输出文件名，默认基于 output-file 自动生成。")
     parser.add_argument(
         "--recall-mode",
         choices=["strict", "balanced", "broad"],
@@ -112,6 +115,8 @@ def parse_args() -> CrawlConfig:
         recall_mode=args.recall_mode,
         download_approved_pdfs=args.download_approved_pdfs,
         pdf_dir=args.pdf_dir,
+        export_approved_bibtex=args.export_approved_bibtex,
+        bibtex_file=args.bibtex_file,
     )
 
 
@@ -321,6 +326,9 @@ def run(config: CrawlConfig) -> int:
 
     cache_file = save_records_cache(records, plan.cache_file)
     generated_files = save_records(records, plan.crawl_config)
+    if config.export_approved_bibtex:
+        bibtex_file = config.bibtex_file or build_approved_bibtex_filename(config.output_file)
+        generated_files.append(export_approved_bibtex(records, bibtex_file))
     downloaded_pdf_files = []
     if config.download_approved_pdfs:
         downloaded_pdf_files = download_approved_pdfs(records, plan.crawl_config)

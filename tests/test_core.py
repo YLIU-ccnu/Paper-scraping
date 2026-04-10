@@ -3,6 +3,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from ml_physics_crawler.ai_filter import should_apply_ai_filter
+from ml_physics_crawler.bibtex import build_approved_bibtex_filename, export_approved_bibtex
 from ml_physics_crawler.cli import (
     build_manifest_filename,
     build_run_manifest,
@@ -32,6 +33,7 @@ def make_record(title: str, theme: str, ai_score: int | None = None, published: 
         authors=[],
         abstract="",
         journal="arXiv",
+        doi="",
         article_url=f"https://example.org/{title}",
         pdf_url="",
         published=published,
@@ -119,6 +121,9 @@ class OutputTests(unittest.TestCase):
 
     def test_resolve_review_file(self) -> None:
         self.assertEqual(resolve_review_file("papers.json"), "papers.review.csv")
+
+    def test_build_approved_bibtex_filename(self) -> None:
+        self.assertEqual(build_approved_bibtex_filename("papers.json"), "papers.approved.bib")
 
     def test_split_records_by_theme(self) -> None:
         records = [
@@ -309,6 +314,24 @@ class OutputTests(unittest.TestCase):
         path = build_pdf_path(record, "library/pdfs")
         self.assertTrue(str(path).startswith("library/pdfs/hybrid/"))
         self.assertTrue(build_pdf_filename(record).endswith(".pdf"))
+
+    def test_export_approved_bibtex_only_includes_approved(self) -> None:
+        with TemporaryDirectory() as tmpdir:
+            approved = make_record("Approved Paper", "hybrid", published="2026-04-10T00:00:00Z")
+            approved.authors = ["Alice Wang", "Bob Li"]
+            approved.review_status = "approved"
+            approved.doi = "10.1234/example"
+            approved.review_notes = "keep"
+            pending = make_record("Pending Paper", "ai_methodology", published="2026-04-10T00:00:00Z")
+            output_file = str(Path(tmpdir) / "papers.approved.bib")
+
+            export_approved_bibtex([approved, pending], output_file)
+
+            content = Path(output_file).read_text(encoding="utf-8")
+            self.assertIn("@article{wang2026250100001", content)
+            self.assertIn("Approved Paper", content)
+            self.assertIn("10.1234/example", content)
+            self.assertNotIn("Pending Paper", content)
 
 
 if __name__ == "__main__":

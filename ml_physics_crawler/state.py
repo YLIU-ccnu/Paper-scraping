@@ -46,6 +46,7 @@ def load_records_cache(cache_file: str) -> list[PaperRecord]:
                 authors=item.get("authors", []),
                 abstract=item.get("abstract", ""),
                 journal=item.get("journal", ""),
+                doi=item.get("doi", ""),
                 article_url=item.get("article_url", ""),
                 pdf_url=item.get("pdf_url", ""),
                 published=item.get("published", ""),

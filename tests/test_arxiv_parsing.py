@@ -1,7 +1,9 @@
 import unittest
 from datetime import datetime, timedelta, timezone
 
-from ml_physics_crawler.arxiv import is_within_time_window, parse_arxiv
+from unittest.mock import patch
+
+from ml_physics_crawler.arxiv import crawl_arxiv, is_within_time_window, parse_arxiv
 from ml_physics_crawler.models import CrawlConfig
 
 
@@ -105,6 +107,19 @@ class ArxivParsingTests(unittest.TestCase):
 
         self.assertEqual(len(records), 1)
         self.assertEqual(records[0].title, "Graph Neural Networks for Particle Physics Event Reconstruction")
+
+    def test_crawl_arxiv_respects_total_results_when_smaller_than_batch_size(self) -> None:
+        requested_max_results = []
+
+        def fake_fetch_arxiv_batch(start: int, max_results: int, config: CrawlConfig) -> str:
+            requested_max_results.append(max_results)
+            return SAMPLE_FEED
+
+        with patch("ml_physics_crawler.arxiv.fetch_arxiv_batch", side_effect=fake_fetch_arxiv_batch):
+            records = crawl_arxiv(CrawlConfig(total_results=1, batch_size=100, sleep_seconds=0, recall_mode="balanced"))
+
+        self.assertEqual(requested_max_results, [1])
+        self.assertEqual(len(records), 1)
 
 
 if __name__ == "__main__":

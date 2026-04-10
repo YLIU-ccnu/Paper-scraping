@@ -204,6 +204,8 @@ python paper_scraping.py --help
 - `--ai-min-score`
 - `--download-approved-pdfs`
 - `--pdf-dir`
+- `--export-approved-bibtex`
+- `--bibtex-file`
 - `--recall-mode {strict,balanced,broad}`
 
 
@@ -352,6 +354,27 @@ library/pdfs/
 ```
 
 这样后面不管是继续人工阅读，还是接入 Zotero collection，都可以直接基于这些目录继续做。
+
+
+## Approved BibTeX 导出
+
+如果你想先把精选论文手动导入 Zotero，而不是直接走 API，同样可以基于审查表导出 `approved` 的 BibTeX：
+
+```bash
+python paper_scraping.py \
+  --process-approved \
+  --output-format csv \
+  --output-file papers.csv \
+  --export-approved-bibtex
+```
+
+默认会额外生成：
+
+```text
+papers.approved.bib
+```
+
+这个文件只包含 `review_status=approved` 的论文，可以直接在 Zotero 中通过 `File -> Import` 导入。
 
 
 ## 筛选与增量更新逻辑

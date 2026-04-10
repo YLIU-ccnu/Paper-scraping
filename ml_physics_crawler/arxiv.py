@@ -152,6 +152,7 @@ def parse_arxiv(xml_text: str, config: CrawlConfig) -> list[PaperRecord]:
             authors=arxiv_extract_authors(entry),
             abstract=abstract,
             journal=journal,
+            doi=doi,
             article_url=f"https://doi.org/{doi}" if doi else arxiv_url,
             pdf_url=arxiv_extract_pdf_url(entry),
             published=published,
@@ -168,16 +169,17 @@ def crawl_arxiv(config: CrawlConfig) -> list[PaperRecord]:
     records = []
 
     for start in range(0, config.total_results, config.batch_size):
-        print(f"[arXiv] fetching {start} - {start + config.batch_size}")
+        batch_max_results = min(config.batch_size, config.total_results - start)
+        print(f"[arXiv] fetching {start} - {start + batch_max_results}")
         try:
-            xml_text = fetch_arxiv_batch(start=start, max_results=config.batch_size, config=config)
+            xml_text = fetch_arxiv_batch(start=start, max_results=batch_max_results, config=config)
             batch_records = parse_arxiv(xml_text, config)
             print(f"[arXiv] kept {len(batch_records)}")
             records.extend(batch_records)
         except Exception as exc:
             print(f"[arXiv] skipped batch {start}: {exc}")
 
-        next_start = start + config.batch_size
+        next_start = start + batch_max_results
         if next_start < config.total_results and config.sleep_seconds > 0:
             time.sleep(config.sleep_seconds)
 

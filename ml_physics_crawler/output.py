@@ -80,6 +80,7 @@ def save_to_txt(records: list[PaperRecord], filename: str) -> None:
             file.write(f"标签: {', '.join(record.tags) if record.tags else 'uncategorized'}\n")
             file.write(f"粗筛依据: {record.match_reason or 'N/A'}\n")
             file.write(f"期刊: {record.journal or 'N/A'}\n")
+            file.write(f"DOI: {record.doi or 'N/A'}\n")
             file.write(f"发布时间: {record.published or 'N/A'}\n")
             file.write(f"文献地址: {record.article_url or 'N/A'}\n")
             file.write(f"pdf_url: {record.pdf_url or 'N/A'}\n")
@@ -106,6 +107,7 @@ def save_to_csv(records: list[PaperRecord], filename: str) -> None:
         "authors",
         "abstract",
         "journal",
+        "doi",
         "article_url",
         "pdf_url",
         "published",
@@ -149,6 +151,7 @@ def save_review_csv(records: list[PaperRecord], filename: str) -> str:
         "article_url",
         "pdf_url",
         "journal",
+        "doi",
         "abstract",
     ]
 
@@ -173,6 +176,7 @@ def save_review_csv(records: list[PaperRecord], filename: str) -> str:
                     "article_url": record.article_url,
                     "pdf_url": record.pdf_url,
                     "journal": record.journal,
+                    "doi": record.doi,
                     "abstract": record.abstract,
                 }
             )
