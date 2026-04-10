@@ -10,6 +10,8 @@ from .arxiv import crawl_arxiv
 from .filtering import deduplicate
 from .models import CrawlConfig, PaperRecord, RunPlan
 from .output import save_records
+from .pdf import download_approved_pdfs
+from .review import apply_review_updates, resolve_review_file
 from .state import (
     build_records_cache_filename,
     build_run_state_filename,
@@ -24,6 +26,7 @@ from .strategy import THEME_ORDER
 
 def parse_args() -> CrawlConfig:
     parser = argparse.ArgumentParser(description="抓取 arXiv 上与 AI for Science 或相关 AI 方法论文。")
+    parser.add_argument("--process-approved", action="store_true", help="不重新抓取，只读取本地缓存和审查表，处理 approved 记录。")
     parser.add_argument("--total-results", type=int, default=300, help="总共抓取多少条 arXiv 结果。")
     parser.add_argument(
         "--crawl-mode",
@@ -56,6 +59,8 @@ def parse_args() -> CrawlConfig:
     parser.add_argument("--ai-model", default="gpt-4o-mini", help="AI 筛选使用的模型名称。")
     parser.add_argument("--ai-base-url", default="https://api.openai.com/v1", help="AI 接口基础地址。")
     parser.add_argument("--ai-min-score", type=int, default=60, help="AI 保留论文的最低分数阈值。")
+    parser.add_argument("--download-approved-pdfs", action="store_true", help="只下载 review_status=approved 的 PDF，并按主题分类保存。")
+    parser.add_argument("--pdf-dir", default="library/pdfs", help="approved PDF 的保存目录。")
     parser.add_argument(
         "--recall-mode",
         choices=["strict", "balanced", "broad"],
@@ -86,6 +91,7 @@ def parse_args() -> CrawlConfig:
         parser.error("--ai-min-score 必须在 0 到 100 之间")
 
     return CrawlConfig(
+        process_approved=args.process_approved,
         crawl_mode=args.crawl_mode,
         total_results=args.total_results,
         bootstrap_total_results=args.bootstrap_total_results,
@@ -104,6 +110,8 @@ def parse_args() -> CrawlConfig:
         ai_base_url=args.ai_base_url,
         ai_min_score=args.ai_min_score,
         recall_mode=args.recall_mode,
+        download_approved_pdfs=args.download_approved_pdfs,
+        pdf_dir=args.pdf_dir,
     )
 
 
@@ -113,6 +121,14 @@ def resolve_run_plan(config: CrawlConfig) -> RunPlan:
     has_cache = has_cached_records(cache_file)
     run_state = load_run_state(state_file)
     last_successful_run_at = run_state.get("last_successful_run_at")
+
+    if config.process_approved:
+        return RunPlan(
+            mode="process_approved",
+            crawl_config=config,
+            cache_file=cache_file,
+            has_existing_cache=has_cache,
+        )
 
     if config.crawl_mode == "auto":
         if has_cache:
@@ -172,6 +188,7 @@ def build_run_summary(
     generated_files: list[str],
     plan: RunPlan,
     fetched_count: int,
+    downloaded_pdf_files: list[str] | None = None,
 ) -> str:
     lines = []
     lines.append("Run summary:")
@@ -185,12 +202,20 @@ def build_run_summary(
     lines.append(f"- cache_file: {plan.cache_file}")
 
     theme_counts = Counter(record.theme or "uncategorized" for record in records)
+    review_counts = Counter(record.review_status or "pending" for record in records)
     if theme_counts:
         lines.append("- themes:")
         for theme, _ in sorted(THEME_ORDER.items(), key=lambda item: item[1]):
             count = theme_counts.get(theme, 0)
             if count:
                 lines.append(f"  {theme}: {count}")
+
+    if review_counts:
+        lines.append("- review:")
+        for status in ["pending", "approved", "rejected"]:
+            count = review_counts.get(status, 0)
+            if count:
+                lines.append(f"  {status}: {count}")
 
     if config.enable_ai_filter:
         decision_counts = Counter(record.ai_decision or "unknown" for record in records)
@@ -203,6 +228,11 @@ def build_run_summary(
     lines.append("- files:")
     for filename in generated_files:
         lines.append(f"  {filename}")
+
+    if downloaded_pdf_files:
+        lines.append(f"- downloaded_pdfs: {len(downloaded_pdf_files)}")
+        for filename in downloaded_pdf_files:
+            lines.append(f"  {filename}")
 
     return "\n".join(lines)
 
@@ -233,9 +263,11 @@ def build_run_manifest(
     summary_file: str,
     plan: RunPlan,
     fetched_count: int,
+    downloaded_pdf_files: list[str] | None = None,
 ) -> dict:
     theme_counts = Counter(record.theme or "uncategorized" for record in records)
     ai_decision_counts = Counter(record.ai_decision or "unknown" for record in records)
+    review_counts = Counter(record.review_status or "pending" for record in records)
 
     return {
         "generated_at": datetime.now(timezone.utc).isoformat(),
@@ -249,8 +281,10 @@ def build_run_manifest(
         "fetched_this_run": fetched_count,
         "total_records": len(records),
         "theme_counts": dict(theme_counts),
+        "review_counts": dict(review_counts),
         "ai_decision_counts": dict(ai_decision_counts),
         "generated_files": generated_files,
+        "downloaded_pdf_files": downloaded_pdf_files or [],
         "summary_file": summary_file,
     }
 
@@ -265,20 +299,34 @@ def write_run_manifest(manifest: dict, output_file: str) -> str:
 
 def run(config: CrawlConfig) -> int:
     plan = resolve_run_plan(config)
-    fetched_records = crawl_arxiv(plan.crawl_config)
-    fetched_records = apply_ai_filter(fetched_records, plan.crawl_config)
+    review_file = resolve_review_file(config.output_file)
+    fetched_records: list[PaperRecord] = []
 
-    if plan.mode == "incremental" and plan.has_existing_cache:
-        existing_records = load_records_cache(plan.cache_file)
-        records = deduplicate(fetched_records + existing_records)
+    if plan.mode == "process_approved":
+        if not plan.has_existing_cache:
+            raise RuntimeError(f"未找到本地缓存，无法执行 approved 后处理：{plan.cache_file}")
+        records = load_records_cache(plan.cache_file)
     else:
-        records = fetched_records
+        fetched_records = crawl_arxiv(plan.crawl_config)
+        fetched_records = apply_ai_filter(fetched_records, plan.crawl_config)
+
+        if plan.mode == "incremental" and plan.has_existing_cache:
+            existing_records = load_records_cache(plan.cache_file)
+            existing_records = apply_review_updates(existing_records, review_file)
+            records = deduplicate(fetched_records + existing_records)
+        else:
+            records = fetched_records
+
+    records = apply_review_updates(records, review_file)
 
     cache_file = save_records_cache(records, plan.cache_file)
     generated_files = save_records(records, plan.crawl_config)
-    summary = build_run_summary(records, plan.crawl_config, generated_files, plan, len(fetched_records))
+    downloaded_pdf_files = []
+    if config.download_approved_pdfs:
+        downloaded_pdf_files = download_approved_pdfs(records, plan.crawl_config)
+    summary = build_run_summary(records, plan.crawl_config, generated_files, plan, len(fetched_records), downloaded_pdf_files)
     summary_file = write_run_summary(summary, config.output_file)
-    manifest = build_run_manifest(records, plan.crawl_config, [cache_file, *generated_files], summary_file, plan, len(fetched_records))
+    manifest = build_run_manifest(records, plan.crawl_config, [cache_file, *generated_files], summary_file, plan, len(fetched_records), downloaded_pdf_files)
     manifest_file = write_run_manifest(manifest, config.output_file)
     state_file = build_run_state_filename(config.output_file)
     save_run_state(
@@ -296,6 +344,8 @@ def run(config: CrawlConfig) -> int:
     print(summary)
     print(f"Summary file: {summary_file}")
     print(f"Manifest file: {manifest_file}")
+    if downloaded_pdf_files:
+        print(f"Downloaded approved PDFs: {len(downloaded_pdf_files)}")
     return 0
 
 

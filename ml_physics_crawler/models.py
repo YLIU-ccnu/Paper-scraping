@@ -3,6 +3,7 @@ from dataclasses import dataclass
 
 @dataclass
 class CrawlConfig:
+    process_approved: bool = False
     crawl_mode: str = "auto"
     total_results: int = 300
     bootstrap_total_results: int = 1000
@@ -22,6 +23,8 @@ class CrawlConfig:
     ai_base_url: str = "https://api.openai.com/v1"
     ai_min_score: int = 60
     recall_mode: str = "broad"
+    download_approved_pdfs: bool = False
+    pdf_dir: str = "library/pdfs"
 
 
 @dataclass
@@ -35,6 +38,7 @@ class RunPlan:
 @dataclass
 class PaperRecord:
     source: str
+    arxiv_id: str
     title: str
     authors: list[str]
     abstract: str
@@ -49,3 +53,6 @@ class PaperRecord:
     ai_decision: str = ""
     ai_reason: str = ""
     match_reason: str = ""
+    review_status: str = "pending"
+    review_notes: str = ""
+    reviewed_at: str = ""

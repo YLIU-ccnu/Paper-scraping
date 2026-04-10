@@ -12,7 +12,9 @@ from ml_physics_crawler.cli import (
 )
 from ml_physics_crawler.filtering import classify_record, should_keep_record
 from ml_physics_crawler.models import CrawlConfig, PaperRecord, RunPlan
-from ml_physics_crawler.output import build_theme_filename, sort_records, split_records_by_theme
+from ml_physics_crawler.pdf import build_pdf_filename, build_pdf_path, select_approved_records
+from ml_physics_crawler.output import build_review_filename, build_theme_filename, sort_records, sort_records_for_review, split_records_by_theme
+from ml_physics_crawler.review import apply_review_updates, resolve_review_file
 from ml_physics_crawler.state import (
     build_records_cache_filename,
     build_run_state_filename,
@@ -25,6 +27,7 @@ from ml_physics_crawler.state import (
 def make_record(title: str, theme: str, ai_score: int | None = None, published: str = "") -> PaperRecord:
     return PaperRecord(
         source="arXiv",
+        arxiv_id="2501.00001v1",
         title=title,
         authors=[],
         abstract="",
@@ -108,6 +111,15 @@ class OutputTests(unittest.TestCase):
             "papers.ai_methodology.json",
         )
 
+    def test_build_review_filename(self) -> None:
+        self.assertEqual(
+            build_review_filename("papers.json"),
+            "papers.review.csv",
+        )
+
+    def test_resolve_review_file(self) -> None:
+        self.assertEqual(resolve_review_file("papers.json"), "papers.review.csv")
+
     def test_split_records_by_theme(self) -> None:
         records = [
             make_record("hybrid-paper", "hybrid"),
@@ -118,6 +130,16 @@ class OutputTests(unittest.TestCase):
         self.assertEqual(list(grouped.keys()), ["hybrid", "ai_for_science", "ai_methodology"])
         self.assertEqual(grouped["hybrid"][0].title, "hybrid-paper")
 
+    def test_sort_records_for_review_prioritizes_pending(self) -> None:
+        approved = make_record("approved-paper", "hybrid", 95)
+        approved.review_status = "approved"
+        pending = make_record("pending-paper", "ai_methodology", 10)
+        rejected = make_record("rejected-paper", "hybrid", 99)
+        rejected.review_status = "rejected"
+
+        sorted_titles = [record.title for record in sort_records_for_review([approved, rejected, pending])]
+        self.assertEqual(sorted_titles[0], "pending-paper")
+
     def test_build_run_summary_contains_counts_and_files(self) -> None:
         records = [
             make_record("hybrid-paper", "hybrid", 90),
@@ -125,6 +147,7 @@ class OutputTests(unittest.TestCase):
         ]
         records[0].ai_decision = "keep"
         records[1].ai_decision = "drop"
+        records[0].review_status = "approved"
 
         summary = build_run_summary(
             records,
@@ -138,6 +161,8 @@ class OutputTests(unittest.TestCase):
         self.assertIn("days_back: 7", summary)
         self.assertIn("hybrid: 1", summary)
         self.assertIn("ai_methodology: 1", summary)
+        self.assertIn("approved: 1", summary)
+        self.assertIn("pending: 1", summary)
         self.assertIn("keep: 1", summary)
         self.assertIn("drop: 1", summary)
         self.assertIn("papers.json", summary)
@@ -161,6 +186,7 @@ class OutputTests(unittest.TestCase):
         ]
         records[0].ai_decision = "keep"
         records[1].ai_decision = "drop"
+        records[0].review_status = "approved"
         config = CrawlConfig(enable_ai_filter=True, days_back=7, output_file="papers.json")
 
         manifest = build_run_manifest(
@@ -176,6 +202,7 @@ class OutputTests(unittest.TestCase):
         self.assertEqual(manifest["config"]["days_back"], 7)
         self.assertEqual(manifest["run_plan"]["mode"], "incremental")
         self.assertEqual(manifest["theme_counts"]["hybrid"], 1)
+        self.assertEqual(manifest["review_counts"]["approved"], 1)
         self.assertEqual(manifest["ai_decision_counts"]["keep"], 1)
         self.assertEqual(manifest["summary_file"], "papers.summary.json.txt")
 
@@ -233,6 +260,18 @@ class OutputTests(unittest.TestCase):
             self.assertIsNotNone(plan.crawl_config.since_date)
             self.assertIsNone(plan.crawl_config.days_back)
 
+    def test_resolve_run_plan_process_approved_uses_local_cache_only(self) -> None:
+        with TemporaryDirectory() as tmpdir:
+            output_file = str(Path(tmpdir) / "papers.json")
+            cache_file = build_records_cache_filename(output_file)
+            save_records_cache([make_record("cached-paper", "hybrid")], cache_file)
+
+            plan = resolve_run_plan(CrawlConfig(output_file=output_file, process_approved=True))
+
+            self.assertEqual(plan.mode, "process_approved")
+            self.assertTrue(plan.has_existing_cache)
+            self.assertEqual(plan.cache_file, cache_file)
+
     def test_save_and_load_run_state(self) -> None:
         with TemporaryDirectory() as tmpdir:
             output_file = str(Path(tmpdir) / "papers.json")
@@ -241,6 +280,35 @@ class OutputTests(unittest.TestCase):
 
             loaded = load_run_state(state_file)
             self.assertEqual(loaded["last_successful_run_at"], "2026-04-10T00:00:00+00:00")
+
+    def test_apply_review_updates(self) -> None:
+        with TemporaryDirectory() as tmpdir:
+            review_file = Path(tmpdir) / "papers.review.csv"
+            review_file.write_text(
+                (
+                    "review_status,review_notes,reviewed_at,theme,ai_score,ai_decision,published,title,authors,categories,tags,match_reason,article_url,pdf_url,journal,abstract\n"
+                    "approved,keep this,2026-04-10,hybrid,90,keep,2026-04-10,approved-paper,,,,,https://example.org/approved-paper,,,\n"
+                ),
+                encoding="utf-8",
+            )
+            record = make_record("approved-paper", "hybrid")
+            updated = apply_review_updates([record], str(review_file))
+            self.assertEqual(updated[0].review_status, "approved")
+            self.assertEqual(updated[0].review_notes, "keep this")
+
+    def test_select_approved_records(self) -> None:
+        approved = make_record("approved-paper", "hybrid")
+        approved.review_status = "approved"
+        pending = make_record("pending-paper", "ai_methodology")
+        selected = select_approved_records([approved, pending])
+        self.assertEqual([record.title for record in selected], ["approved-paper"])
+
+    def test_build_pdf_path_uses_theme_directory(self) -> None:
+        record = make_record("Graph Neural Networks for Event Reconstruction", "hybrid", published="2026-04-10T00:00:00Z")
+        record.authors = ["Alice Wang"]
+        path = build_pdf_path(record, "library/pdfs")
+        self.assertTrue(str(path).startswith("library/pdfs/hybrid/"))
+        self.assertTrue(build_pdf_filename(record).endswith(".pdf"))
 
 
 if __name__ == "__main__":

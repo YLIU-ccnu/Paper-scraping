@@ -119,6 +119,12 @@ def arxiv_extract_authors(entry: ET.Element) -> list[str]:
     return authors
 
 
+def arxiv_extract_id(arxiv_url: str) -> str:
+    if not arxiv_url:
+        return ""
+    return arxiv_url.rstrip("/").split("/")[-1]
+
+
 def parse_arxiv(xml_text: str, config: CrawlConfig) -> list[PaperRecord]:
     root = ET.fromstring(xml_text)
     records = []
@@ -141,6 +147,7 @@ def parse_arxiv(xml_text: str, config: CrawlConfig) -> list[PaperRecord]:
 
         records.append(PaperRecord(
             source="arXiv",
+            arxiv_id=arxiv_extract_id(arxiv_url),
             title=title,
             authors=arxiv_extract_authors(entry),
             abstract=abstract,

@@ -138,14 +138,41 @@ def classify_record(text: str, categories: list[str], recall_mode: str) -> tuple
 
 
 def deduplicate(records: list[PaperRecord]) -> list[PaperRecord]:
-    seen = set()
-    deduplicated = []
+    merged: dict[tuple[str, str], PaperRecord] = {}
 
     for record in records:
         key = (record.title.lower(), record.article_url.lower())
-        if key in seen:
+        existing = merged.get(key)
+        if existing is None:
+            merged[key] = record
             continue
-        seen.add(key)
-        deduplicated.append(record)
+        merged[key] = merge_records(existing, record)
 
-    return deduplicated
+    return list(merged.values())
+
+
+def merge_records(primary: PaperRecord, secondary: PaperRecord) -> PaperRecord:
+    if not primary.arxiv_id and secondary.arxiv_id:
+        primary.arxiv_id = secondary.arxiv_id
+    if primary.review_status == "pending" and secondary.review_status != "pending":
+        primary.review_status = secondary.review_status
+    if not primary.review_notes and secondary.review_notes:
+        primary.review_notes = secondary.review_notes
+    if not primary.reviewed_at and secondary.reviewed_at:
+        primary.reviewed_at = secondary.reviewed_at
+
+    if primary.ai_score is None and secondary.ai_score is not None:
+        primary.ai_score = secondary.ai_score
+    if not primary.ai_decision and secondary.ai_decision:
+        primary.ai_decision = secondary.ai_decision
+    if not primary.ai_reason and secondary.ai_reason:
+        primary.ai_reason = secondary.ai_reason
+
+    if not primary.tags and secondary.tags:
+        primary.tags = secondary.tags
+    if not primary.categories and secondary.categories:
+        primary.categories = secondary.categories
+    if not primary.match_reason and secondary.match_reason:
+        primary.match_reason = secondary.match_reason
+
+    return primary

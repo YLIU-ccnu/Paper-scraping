@@ -79,6 +79,7 @@ AI 筛选支持成本控制：
 每次运行会生成：
 
 - 主输出文件
+- 人工审查专用 `review csv`
 - 按主题拆分的输出文件
 - 纯文本运行摘要
 - 结构化 `manifest`
@@ -90,6 +91,7 @@ AI 筛选支持成本控制：
 - 实际抓到多少新论文
 - 当前总库大小
 - 各主题分布
+- 当前审查状态分布
 - AI 决策情况
 - 本次生成了哪些文件
 
@@ -137,7 +139,7 @@ AI 筛选支持成本控制：
   AI 二次筛选与调用范围控制
 
 - `ml_physics_crawler/output.py`
-  导出总文件、主题拆分文件、统一排序
+  导出总文件、主题拆分文件、人工审查 CSV、统一排序
 
 - `ml_physics_crawler/state.py`
   内部状态目录、缓存文件、运行状态文件管理
@@ -188,6 +190,7 @@ python paper_scraping.py --help
 常用参数包括：
 
 - `--crawl-mode {auto,full,incremental}`
+- `--process-approved`
 - `--bootstrap-total-results`
 - `--incremental-total-results`
 - `--days-back`
@@ -199,6 +202,8 @@ python paper_scraping.py --help
 - `--ai-model`
 - `--ai-base-url`
 - `--ai-min-score`
+- `--download-approved-pdfs`
+- `--pdf-dir`
 - `--recall-mode {strict,balanced,broad}`
 
 
@@ -260,6 +265,9 @@ papers.json
 - `papers.json`
   总输出文件
 
+- `papers.review.csv`
+  人工审查工作表，默认包含 `review_status=pending`
+
 - `papers.hybrid.json`
 - `papers.ai_for_science.json`
 - `papers.ai_methodology.json`
@@ -285,6 +293,65 @@ papers.json
 
 - `run_state.json`
   运行状态，包含上次成功抓取时间等信息
+
+
+## 人工审查工作流
+
+推荐把这个项目接入 Zotero 或 PDF 下载前，先走一轮人工审查：
+
+1. 运行抓取脚本，得到总文件和 `papers.review.csv`
+2. 用 Excel、Numbers 或表格工具打开 `papers.review.csv`
+3. 只修改这几列：
+   - `review_status`：`pending` / `approved` / `rejected`
+   - `review_notes`
+   - `reviewed_at`
+4. 后续增量抓取时，历史记录里的审查状态会被保留，不会因为同一篇论文再次抓到而丢失
+
+这层人工审查的目的，是把“自动抓取结果”与“最终要进入 Zotero 或下载 PDF 的精选文献”分开。
+
+
+## Approved PDF 下载
+
+当你把 `papers.review.csv` 里的部分论文标记为 `approved` 后，可以在下一次运行时只下载这些论文的 PDF：
+
+```bash
+python paper_scraping.py \
+  --output-format csv \
+  --output-file papers.csv \
+  --download-approved-pdfs \
+  --pdf-dir library/pdfs
+```
+
+如果你不想重新抓 arXiv，只想基于已经抓到的缓存和你改过的审查表做后处理，可以直接运行：
+
+```bash
+python paper_scraping.py \
+  --process-approved \
+  --output-format csv \
+  --output-file papers.csv \
+  --download-approved-pdfs \
+  --pdf-dir library/pdfs
+```
+
+这个模式会：
+
+- 读取本地缓存
+- 读取 `papers.review.csv`
+- 找出 `review_status=approved` 的论文
+- 只下载这些 PDF
+- 不重新联网抓取新论文
+
+默认会按 `theme` 分类保存到：
+
+```text
+library/pdfs/
+  hybrid/
+  ai_for_science/
+  ai_methodology/
+  science_application/
+```
+
+这样后面不管是继续人工阅读，还是接入 Zotero collection，都可以直接基于这些目录继续做。
 
 
 ## 筛选与增量更新逻辑
@@ -357,6 +424,7 @@ python -m unittest discover -s tests -v
 - 运行摘要
 - manifest 记录
 - 本地缓存与状态管理
+- 人工审查工作流
 - 基础测试
 
 

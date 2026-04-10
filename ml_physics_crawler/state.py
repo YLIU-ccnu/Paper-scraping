@@ -36,7 +36,32 @@ def load_records_cache(cache_file: str) -> list[PaperRecord]:
     with open(path, "r", encoding="utf-8") as file:
         data = json.load(file)
 
-    return [PaperRecord(**item) for item in data]
+    normalized = []
+    for item in data:
+        normalized.append(
+            PaperRecord(
+                source=item.get("source", ""),
+                arxiv_id=item.get("arxiv_id", ""),
+                title=item.get("title", ""),
+                authors=item.get("authors", []),
+                abstract=item.get("abstract", ""),
+                journal=item.get("journal", ""),
+                article_url=item.get("article_url", ""),
+                pdf_url=item.get("pdf_url", ""),
+                published=item.get("published", ""),
+                categories=item.get("categories", []),
+                tags=item.get("tags", []),
+                theme=item.get("theme", ""),
+                ai_score=item.get("ai_score"),
+                ai_decision=item.get("ai_decision", ""),
+                ai_reason=item.get("ai_reason", ""),
+                match_reason=item.get("match_reason", ""),
+                review_status=item.get("review_status", "pending"),
+                review_notes=item.get("review_notes", ""),
+                reviewed_at=item.get("reviewed_at", ""),
+            )
+        )
+    return normalized
 
 
 def save_records_cache(records: list[PaperRecord], cache_file: str) -> str:
