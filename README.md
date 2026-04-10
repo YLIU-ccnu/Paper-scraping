@@ -99,7 +99,7 @@ AI 筛选支持成本控制：
 ```text
 .
 ├── README.md
-├── 爬虫.py
+├── paper_scraping.py
 ├── ml_physics_crawler/
 │   ├── __init__.py
 │   ├── ai_filter.py
@@ -121,7 +121,7 @@ AI 筛选支持成本控制：
 
 ### 关键模块说明
 
-- `爬虫.py`
+- `paper_scraping.py`
   项目入口，保持为一个很薄的启动脚本
 
 - `ml_physics_crawler/cli.py`
@@ -170,7 +170,7 @@ pip install requests
 ### 基本运行
 
 ```bash
-python 爬虫.py --output-format json --output-file papers.json
+python paper_scraping.py --output-format json --output-file papers.json
 ```
 
 默认行为：
@@ -182,7 +182,7 @@ python 爬虫.py --output-format json --output-file papers.json
 ### 常用参数
 
 ```bash
-python 爬虫.py --help
+python paper_scraping.py --help
 ```
 
 常用参数包括：
@@ -205,14 +205,14 @@ python 爬虫.py --help
 ### 示例 1：默认自动模式
 
 ```bash
-python 爬虫.py --output-format json --output-file papers.json
+python paper_scraping.py --output-format json --output-file papers.json
 ```
 
 
 ### 示例 2：强制全量抓取
 
 ```bash
-python 爬虫.py \
+python paper_scraping.py \
   --crawl-mode full \
   --bootstrap-total-results 2000 \
   --output-format json \
