@@ -102,15 +102,21 @@ AI 筛选支持成本控制：
 .
 ├── README.md
 ├── paper_scraping.py
+├── library/
+│   └── pdfs/
+│       └── ...
 ├── ml_physics_crawler/
 │   ├── __init__.py
 │   ├── ai_filter.py
 │   ├── arxiv.py
+│   ├── bibtex.py
 │   ├── cli.py
 │   ├── constants.py
 │   ├── filtering.py
 │   ├── models.py
 │   ├── output.py
+│   ├── pdf.py
+│   ├── review.py
 │   ├── state.py
 │   ├── strategy.py
 │   ├── text_utils.py
@@ -140,6 +146,15 @@ AI 筛选支持成本控制：
 
 - `ml_physics_crawler/output.py`
   导出总文件、主题拆分文件、人工审查 CSV、统一排序
+
+- `ml_physics_crawler/review.py`
+  读取和应用人工审查表中的 `approved / rejected / pending` 状态
+
+- `ml_physics_crawler/pdf.py`
+  只处理 `approved` 论文的 PDF 下载与按主题分类保存
+
+- `ml_physics_crawler/bibtex.py`
+  导出 `approved` 论文的 BibTeX，便于手动导入 Zotero
 
 - `ml_physics_crawler/state.py`
   内部状态目录、缓存文件、运行状态文件管理
