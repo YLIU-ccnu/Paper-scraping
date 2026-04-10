@@ -1,0 +1,77 @@
+{
+  "arxiv_api": "https://export.arxiv.org/api/query",
+  "headers": {
+    "User-Agent": "MLPhysicsCrawler/1.0 (mailto:your_email@example.com)"
+  },
+  "namespaces": {
+    "atom": "http://www.w3.org/2005/Atom",
+    "arxiv": "http://arxiv.org/schemas/atom"
+  },
+  "science_categories": [
+    "hep-th", "hep-ph", "hep-ex",
+    "nucl-th", "nucl-ex", "hep-lat",
+    "astro-ph.CO", "astro-ph.GA", "astro-ph.HE", "astro-ph.IM", "astro-ph.SR",
+    "cond-mat.mtrl-sci", "cond-mat.stat-mech", "cond-mat.soft", "cond-mat.dis-nn",
+    "quant-ph", "math-ph",
+    "physics.comp-ph", "physics.data-an", "physics.bio-ph", "physics.chem-ph",
+    "q-bio.BM", "q-bio.GN", "q-bio.MN", "q-bio.NC", "q-bio.QM"
+  ],
+  "ml_categories": [
+    "cs.LG", "stat.ML", "cs.AI"
+  ],
+  "ml_keywords": [
+    "machine learning", "deep learning", "neural network", "graph neural network", "gnn",
+    "transformer", "normalizing flow", "diffusion model", "generative model", "surrogate model",
+    "simulation-based inference", "bayesian optimization", "reinforcement learning",
+    "representation learning", "self-supervised", "foundation model", "large language model",
+    "artificial intelligence", "ai", "data-driven", "data driven", "surrogate", "emulator",
+    "neural surrogate", "inference network", "likelihood-free inference", "amortized inference",
+    "classifier", "regressor", "denoising", "language model", "vision transformer", "autoencoder",
+    "variational autoencoder", "vae", "generative adversarial network", "gan",
+    "parameter estimation", "uncertainty quantification", "symbolic regression"
+  ],
+  "science_keywords": [
+    "particle physics", "high energy physics", "nuclear physics", "heavy ion", "heavy-ion",
+    "quark-gluon plasma", "qgp", "collider", "jet", "detector", "event generation",
+    "phenomenology", "quantum field theory", "qft", "string theory", "effective field theory",
+    "eft", "lattice qcd", "nuclear matter", "nuclear structure", "high-luminosity lhc", "lhc",
+    "lhcb", "atlas", "cms", "alice", "sphenix", "eic", "electron ion collider",
+    "relativistic heavy ion collider", "rhic", "qcd", "hadron", "hadronization", "parton shower",
+    "monte carlo event generator", "event reconstruction", "tracking", "calorimeter", "trigger",
+    "pileup", "detector simulation", "hep", "neutrino", "quark", "gluon", "ai for science",
+    "scientific machine learning", "science foundation model", "physics-informed", "physics informed",
+    "computational physics", "materials science", "molecular dynamics", "quantum chemistry", "chemistry",
+    "drug discovery", "protein", "protein design", "genomics", "bioinformatics", "biology", "astronomy",
+    "astrophysics", "cosmology", "earth science", "climate"
+  ],
+  "arxiv_query_ml_terms": [
+    "all:\"machine learning\"",
+    "all:\"deep learning\"",
+    "all:\"graph neural network\"",
+    "all:\"transformer\"",
+    "all:\"normalizing flow\"",
+    "all:\"simulation-based inference\"",
+    "all:\"surrogate model\"",
+    "all:\"diffusion model\"",
+    "all:\"symbolic regression\"",
+    "all:\"scientific machine learning\"",
+    "all:\"ai for science\"",
+    "all:\"physics-informed machine learning\""
+  ],
+  "ai_filter_system_prompt": "你是严格、保守的科研论文筛选助手，只输出有效 JSON。",
+  "ai_filter_user_prompt_template": "你是一个帮助筛选科研论文的助手。请判断下面这篇 arXiv 论文是否与“AI for Science，或具有较强研究价值的 AI 方法论文”相关。\n\n筛选原则：\n1. 如果论文明确研究 AI/ML 方法本身，并且方法具有较强通用性、创新性或潜在科研应用价值，可以保留，即使不只针对高能物理。\n2. 如果论文明确将 AI/ML 用于科学问题，也可以保留。科学范围不限于高能物理，也包括物理、天文、材料、化学、生物、地球科学等。\n3. 如果只是普通领域论文，几乎没有 AI/ML 成分，不保留。\n4. 如果只是普通 AI 应用小改动、缺乏明显方法价值，也可以偏保守处理。\n5. 对边界样本，如果更像“AI for Science”或“值得关注的 AI 方法论”，可以保留。\n\n请只返回 JSON，不要输出额外解释，格式如下：\n{{\n  \"keep\": true,\n  \"score\": 0,\n  \"reason\": \"一句中文理由\"\n}}\n\n其中：\n- keep: 是否保留\n- score: 0 到 100 的相关性评分\n- reason: 简短说明判断依据\n\n论文信息：\n标题: {title}\n作者: {authors}\n分类: {categories}\n标签: {tags}\n粗筛依据: {match_reason}\n摘要: {abstract}",
+  "theme_order": {
+    "hybrid": 0,
+    "ai_for_science": 1,
+    "ai_methodology": 2,
+    "science_application": 3,
+    "uncategorized": 4
+  },
+  "theme_titles": {
+    "hybrid": "Hybrid",
+    "ai_for_science": "AI for Science",
+    "ai_methodology": "AI Methodology",
+    "science_application": "Science Application",
+    "uncategorized": "Uncategorized"
+  }
+}
