@@ -223,7 +223,7 @@ python 爬虫.py \
 ### 示例 3：强制增量抓取最近 14 天
 
 ```bash
-python 爬虫.py \
+python paper_scraping.py \
   --crawl-mode incremental \
   --days-back 14 \
   --incremental-total-results 500 \
@@ -237,7 +237,7 @@ python 爬虫.py \
 ```bash
 export OPENAI_API_KEY=your_key
 
-python 爬虫.py \
+python paper_scraping.py \
   --enable-ai-filter \
   --ai-filter-scope borderline \
   --ai-model gpt-4o-mini \

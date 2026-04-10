@@ -1,0 +1,5 @@
+from ml_physics_crawler.cli import main
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
