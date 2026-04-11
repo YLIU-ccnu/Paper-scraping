@@ -16,6 +16,7 @@ from ml_physics_crawler.models import CrawlConfig, PaperRecord, RunPlan
 from ml_physics_crawler.pdf import build_pdf_filename, build_pdf_path, select_approved_records
 from ml_physics_crawler.output import build_review_filename, build_theme_filename, sort_records, sort_records_for_review, split_records_by_theme
 from ml_physics_crawler.review import apply_review_updates, resolve_review_file
+from ml_physics_crawler.zotero import build_record_identity, record_to_zotero_item
 from ml_physics_crawler.state import (
     build_records_cache_filename,
     build_run_state_filename,
@@ -160,6 +161,7 @@ class OutputTests(unittest.TestCase):
             ["papers.json", "papers.hybrid.json"],
             RunPlan(mode="incremental", crawl_config=CrawlConfig(days_back=7), cache_file="papers.records.json"),
             2,
+            zotero_result={"created": 1, "skipped": 0, "collection_key": "ABCD1234"},
         )
 
         self.assertIn("total records: 2", summary)
@@ -170,6 +172,7 @@ class OutputTests(unittest.TestCase):
         self.assertIn("pending: 1", summary)
         self.assertIn("keep: 1", summary)
         self.assertIn("drop: 1", summary)
+        self.assertIn("created: 1", summary)
         self.assertIn("papers.json", summary)
 
     def test_build_summary_filename(self) -> None:
@@ -247,6 +250,10 @@ class OutputTests(unittest.TestCase):
             self.assertTrue(plan.has_existing_cache)
             self.assertEqual(plan.crawl_config.total_results, 123)
             self.assertEqual(plan.crawl_config.days_back, 5)
+
+    def test_resolve_run_plan_incremental_rejects_inspire(self) -> None:
+        with self.assertRaises(RuntimeError):
+            resolve_run_plan(CrawlConfig(output_file="papers.json", crawl_mode="incremental", source="inspire"))
 
     def test_resolve_run_plan_prefers_since_date_from_state(self) -> None:
         with TemporaryDirectory() as tmpdir:
@@ -328,10 +335,31 @@ class OutputTests(unittest.TestCase):
             export_approved_bibtex([approved, pending], output_file)
 
             content = Path(output_file).read_text(encoding="utf-8")
-            self.assertIn("@article{wang2026250100001", content)
+            self.assertIn("@article{wang20262501000011,", content)
             self.assertIn("Approved Paper", content)
             self.assertIn("10.1234/example", content)
             self.assertNotIn("Pending Paper", content)
+            self.assertNotIn("archivePrefix", content)
+            self.assertNotIn("primaryClass", content)
+
+    def test_build_record_identity_prefers_doi_then_arxiv_id(self) -> None:
+        record = make_record("Approved Paper", "hybrid")
+        record.doi = "10.1234/example"
+        self.assertEqual(build_record_identity(record), "doi:10.1234/example")
+        record.doi = ""
+        self.assertEqual(build_record_identity(record), "arxiv:2501.00001v1")
+
+    def test_record_to_zotero_item_includes_collection_and_tags(self) -> None:
+        record = make_record("Approved Paper", "hybrid", published="2026-04-10T00:00:00Z")
+        record.authors = ["Alice Wang", "Bob Li"]
+        record.doi = "10.1234/example"
+        record.review_status = "approved"
+        record.review_notes = "keep"
+        item = record_to_zotero_item(record, collection_key="ABCD1234")
+        self.assertEqual(item["itemType"], "journalArticle")
+        self.assertEqual(item["collections"], ["ABCD1234"])
+        self.assertEqual(item["DOI"], "10.1234/example")
+        self.assertTrue(any(tag["tag"] == "hybrid" for tag in item["tags"]))
 
 
 if __name__ == "__main__":

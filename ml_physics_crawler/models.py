@@ -4,6 +4,7 @@ from dataclasses import dataclass
 @dataclass
 class CrawlConfig:
     process_approved: bool = False
+    source: str = "arxiv"
     crawl_mode: str = "auto"
     total_results: int = 300
     bootstrap_total_results: int = 1000
@@ -27,6 +28,13 @@ class CrawlConfig:
     pdf_dir: str = "library/pdfs"
     export_approved_bibtex: bool = False
     bibtex_file: str | None = None
+    sync_zotero: bool = False
+    zotero_library_type: str = "users"
+    zotero_library_id: str | None = None
+    zotero_api_key: str | None = None
+    zotero_collection: str | None = None
+    inspire_query: str | None = None
+    inspire_topcite: int | None = None
 
 
 @dataclass

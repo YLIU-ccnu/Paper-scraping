@@ -206,6 +206,7 @@ python paper_scraping.py --help
 
 - `--crawl-mode {auto,full,incremental}`
 - `--process-approved`
+- `--source {arxiv,inspire}`
 - `--bootstrap-total-results`
 - `--incremental-total-results`
 - `--days-back`
@@ -221,6 +222,13 @@ python paper_scraping.py --help
 - `--pdf-dir`
 - `--export-approved-bibtex`
 - `--bibtex-file`
+- `--sync-zotero`
+- `--zotero-library-type {users,groups}`
+- `--zotero-library-id`
+- `--zotero-api-key`
+- `--zotero-collection`
+- `--inspire-query`
+- `--inspire-topcite`
 - `--recall-mode {strict,balanced,broad}`
 
 
@@ -392,6 +400,32 @@ papers.approved.bib
 这个文件只包含 `review_status=approved` 的论文，可以直接在 Zotero 中通过 `File -> Import` 导入。
 
 
+## Approved Zotero 同步
+
+如果你希望把 `approved` 论文直接同步到 Zotero，而不是手动导入 BibTeX，可以使用内置的 Zotero 同步：
+
+```bash
+export ZOTERO_API_KEY=your_key
+
+python paper_scraping.py \
+  --process-approved \
+  --output-format csv \
+  --output-file papers.csv \
+  --sync-zotero \
+  --zotero-library-type users \
+  --zotero-library-id your_user_id \
+  --zotero-collection "AI for Science"
+```
+
+当前这一步的策略是：
+
+- 只同步 `review_status=approved` 的论文
+- 只同步元数据，不自动上传 PDF 附件
+- 会按 `theme` 和已有标签写入 Zotero tags
+- 如果指定的 collection 不存在，会自动创建
+- 会优先用 `DOI`、其次 `arXiv ID`、最后 `title` 做去重
+
+
 ## 筛选与增量更新逻辑
 
 ### 首次运行
@@ -401,6 +435,20 @@ papers.approved.bib
 - 不使用最近天数限制
 - 建立完整本地缓存
 
+如果你是高能方向，也可以把首次初始化改成 `INSPIRE` 经典高引模式：
+
+```bash
+python paper_scraping.py \
+  --source inspire \
+  --crawl-mode full \
+  --total-results 50 \
+  --inspire-topcite 50 \
+  --output-format csv \
+  --output-file papers.csv
+```
+
+这条路径更适合先建立“小而精”的经典文献库。
+
 ### 后续运行
 
 - 如果检测到缓存，默认走增量模式
@@ -408,6 +456,18 @@ papers.approved.bib
 - 自动回退几个小时作为安全水位线
 - 如果没有水位线，则退回到 `incremental_days_back`
 - 抓到的新记录会与历史缓存合并，再统一去重
+
+后续增量更新建议继续使用 `arXiv`：
+
+```bash
+python paper_scraping.py \
+  --source arxiv \
+  --crawl-mode incremental \
+  --output-format csv \
+  --output-file papers.csv
+```
+
+当前实现里，`INSPIRE` 主要用于 `full` 初始化，不建议用于 `incremental` 追新。
 
 
 ## 策略配置

@@ -9,6 +9,7 @@ from .ai_filter import apply_ai_filter
 from .arxiv import crawl_arxiv
 from .bibtex import build_approved_bibtex_filename, export_approved_bibtex
 from .filtering import deduplicate
+from .inspire import crawl_inspire
 from .models import CrawlConfig, PaperRecord, RunPlan
 from .output import save_records
 from .pdf import download_approved_pdfs
@@ -23,11 +24,13 @@ from .state import (
     save_run_state,
 )
 from .strategy import THEME_ORDER
+from .zotero import sync_approved_to_zotero
 
 
 def parse_args() -> CrawlConfig:
     parser = argparse.ArgumentParser(description="抓取 arXiv 上与 AI for Science 或相关 AI 方法论文。")
     parser.add_argument("--process-approved", action="store_true", help="不重新抓取，只读取本地缓存和审查表，处理 approved 记录。")
+    parser.add_argument("--source", choices=["arxiv", "inspire"], default="arxiv", help="抓取来源：arxiv 用于追新，inspire 适合高能方向经典高引用初始化。")
     parser.add_argument("--total-results", type=int, default=300, help="总共抓取多少条 arXiv 结果。")
     parser.add_argument(
         "--crawl-mode",
@@ -64,6 +67,13 @@ def parse_args() -> CrawlConfig:
     parser.add_argument("--pdf-dir", default="library/pdfs", help="approved PDF 的保存目录。")
     parser.add_argument("--export-approved-bibtex", action="store_true", help="导出 review_status=approved 的 BibTeX 文件，便于导入 Zotero。")
     parser.add_argument("--bibtex-file", help="approved BibTeX 输出文件名，默认基于 output-file 自动生成。")
+    parser.add_argument("--sync-zotero", action="store_true", help="将 review_status=approved 的论文同步到 Zotero。")
+    parser.add_argument("--zotero-library-type", choices=["users", "groups"], default="users", help="Zotero library 类型。")
+    parser.add_argument("--zotero-library-id", help="Zotero user id 或 group id。")
+    parser.add_argument("--zotero-api-key", help="Zotero API key，也可通过环境变量 ZOTERO_API_KEY 提供。")
+    parser.add_argument("--zotero-collection", help="要同步到的 Zotero collection 名称，不存在则自动创建。")
+    parser.add_argument("--inspire-query", help="INSPIRE 初始化查询语句，默认使用高能方向经典检索。")
+    parser.add_argument("--inspire-topcite", type=int, help="INSPIRE 引用阈值，例如 50 表示 topcite 50+。")
     parser.add_argument(
         "--recall-mode",
         choices=["strict", "balanced", "broad"],
@@ -95,6 +105,7 @@ def parse_args() -> CrawlConfig:
 
     return CrawlConfig(
         process_approved=args.process_approved,
+        source=args.source,
         crawl_mode=args.crawl_mode,
         total_results=args.total_results,
         bootstrap_total_results=args.bootstrap_total_results,
@@ -117,6 +128,13 @@ def parse_args() -> CrawlConfig:
         pdf_dir=args.pdf_dir,
         export_approved_bibtex=args.export_approved_bibtex,
         bibtex_file=args.bibtex_file,
+        sync_zotero=args.sync_zotero,
+        zotero_library_type=args.zotero_library_type,
+        zotero_library_id=args.zotero_library_id,
+        zotero_api_key=args.zotero_api_key,
+        zotero_collection=args.zotero_collection,
+        inspire_query=args.inspire_query,
+        inspire_topcite=args.inspire_topcite,
     )
 
 
@@ -164,6 +182,8 @@ def resolve_run_plan(config: CrawlConfig) -> RunPlan:
         )
 
     if config.crawl_mode == "incremental":
+        if config.source == "inspire":
+            raise RuntimeError("INSPIRE 目前只建议用于 full 初始化；incremental 模式请继续使用 arXiv。")
         since_date = None
         if last_successful_run_at:
             since_dt = datetime.fromisoformat(last_successful_run_at)
@@ -194,6 +214,7 @@ def build_run_summary(
     plan: RunPlan,
     fetched_count: int,
     downloaded_pdf_files: list[str] | None = None,
+    zotero_result: dict | None = None,
 ) -> str:
     lines = []
     lines.append("Run summary:")
@@ -239,6 +260,13 @@ def build_run_summary(
         for filename in downloaded_pdf_files:
             lines.append(f"  {filename}")
 
+    if zotero_result:
+        lines.append("- zotero:")
+        lines.append(f"  created: {zotero_result.get('created', 0)}")
+        lines.append(f"  skipped: {zotero_result.get('skipped', 0)}")
+        if zotero_result.get("collection_key"):
+            lines.append(f"  collection_key: {zotero_result['collection_key']}")
+
     return "\n".join(lines)
 
 
@@ -269,6 +297,7 @@ def build_run_manifest(
     plan: RunPlan,
     fetched_count: int,
     downloaded_pdf_files: list[str] | None = None,
+    zotero_result: dict | None = None,
 ) -> dict:
     theme_counts = Counter(record.theme or "uncategorized" for record in records)
     ai_decision_counts = Counter(record.ai_decision or "unknown" for record in records)
@@ -290,6 +319,7 @@ def build_run_manifest(
         "ai_decision_counts": dict(ai_decision_counts),
         "generated_files": generated_files,
         "downloaded_pdf_files": downloaded_pdf_files or [],
+        "zotero_result": zotero_result or {},
         "summary_file": summary_file,
     }
 
@@ -312,7 +342,10 @@ def run(config: CrawlConfig) -> int:
             raise RuntimeError(f"未找到本地缓存，无法执行 approved 后处理：{plan.cache_file}")
         records = load_records_cache(plan.cache_file)
     else:
-        fetched_records = crawl_arxiv(plan.crawl_config)
+        if plan.crawl_config.source == "inspire":
+            fetched_records = crawl_inspire(plan.crawl_config)
+        else:
+            fetched_records = crawl_arxiv(plan.crawl_config)
         fetched_records = apply_ai_filter(fetched_records, plan.crawl_config)
 
         if plan.mode == "incremental" and plan.has_existing_cache:
@@ -332,9 +365,12 @@ def run(config: CrawlConfig) -> int:
     downloaded_pdf_files = []
     if config.download_approved_pdfs:
         downloaded_pdf_files = download_approved_pdfs(records, plan.crawl_config)
-    summary = build_run_summary(records, plan.crawl_config, generated_files, plan, len(fetched_records), downloaded_pdf_files)
+    zotero_result = {}
+    if config.sync_zotero:
+        zotero_result = sync_approved_to_zotero(records, plan.crawl_config)
+    summary = build_run_summary(records, plan.crawl_config, generated_files, plan, len(fetched_records), downloaded_pdf_files, zotero_result)
     summary_file = write_run_summary(summary, config.output_file)
-    manifest = build_run_manifest(records, plan.crawl_config, [cache_file, *generated_files], summary_file, plan, len(fetched_records), downloaded_pdf_files)
+    manifest = build_run_manifest(records, plan.crawl_config, [cache_file, *generated_files], summary_file, plan, len(fetched_records), downloaded_pdf_files, zotero_result)
     manifest_file = write_run_manifest(manifest, config.output_file)
     state_file = build_run_state_filename(config.output_file)
     save_run_state(
@@ -354,6 +390,8 @@ def run(config: CrawlConfig) -> int:
     print(f"Manifest file: {manifest_file}")
     if downloaded_pdf_files:
         print(f"Downloaded approved PDFs: {len(downloaded_pdf_files)}")
+    if zotero_result:
+        print(f"Synced approved items to Zotero: created={zotero_result.get('created', 0)}, skipped={zotero_result.get('skipped', 0)}")
     return 0
 
 
