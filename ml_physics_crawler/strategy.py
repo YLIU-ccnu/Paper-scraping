@@ -10,7 +10,15 @@ def load_strategy() -> dict:
         return json.load(file)
 
 
+@lru_cache(maxsize=1)
+def load_inspire_profiles() -> dict:
+    profiles_file = Path(__file__).resolve().parent / "config" / "inspire_profiles.json"
+    with open(profiles_file, "r", encoding="utf-8") as file:
+        return json.load(file)
+
+
 STRATEGY = load_strategy()
+INSPIRE_PROFILES = load_inspire_profiles()
 
 ARXIV_API = STRATEGY["arxiv_api"]
 INSPIRE_API = STRATEGY["inspire_api"]

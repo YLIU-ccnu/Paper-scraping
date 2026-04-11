@@ -30,6 +30,11 @@ class InspireTests(unittest.TestCase):
         query = build_inspire_query(CrawlConfig(source="inspire", inspire_query="hep-ex", inspire_topcite=100))
         self.assertEqual(query, "(hep-ex) and topcite 100+")
 
+    def test_build_inspire_query_uses_profile(self) -> None:
+        query = build_inspire_query(CrawlConfig(source="inspire", inspire_profile="lhc_ml"))
+        self.assertIn("cn atlas", query)
+        self.assertIn("topcite 20+", query)
+
     def test_parse_inspire_extracts_expected_fields(self) -> None:
         records = parse_inspire(SAMPLE_INSPIRE, CrawlConfig(source="inspire", recall_mode="balanced"))
         self.assertEqual(len(records), 1)

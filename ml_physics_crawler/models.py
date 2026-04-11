@@ -33,6 +33,7 @@ class CrawlConfig:
     zotero_library_id: str | None = None
     zotero_api_key: str | None = None
     zotero_collection: str | None = None
+    inspire_profile: str | None = None
     inspire_query: str | None = None
     inspire_topcite: int | None = None
 

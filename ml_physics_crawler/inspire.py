@@ -2,13 +2,23 @@ from typing import Any
 
 from .filtering import classify_record, deduplicate
 from .models import CrawlConfig, PaperRecord
-from .strategy import HEADERS, INSPIRE_API, INSPIRE_DEFAULT_QUERY, INSPIRE_DEFAULT_TOPCITE
+from .strategy import HEADERS, INSPIRE_API, INSPIRE_DEFAULT_QUERY, INSPIRE_DEFAULT_TOPCITE, INSPIRE_PROFILES
 
 
 def build_inspire_query(config: CrawlConfig) -> str:
-    base_query = config.inspire_query or INSPIRE_DEFAULT_QUERY
+    if config.inspire_profile:
+        profile = INSPIRE_PROFILES.get(config.inspire_profile)
+        if not profile:
+            raise RuntimeError(f"未知的 INSPIRE profile: {config.inspire_profile}")
+        base_query = profile["query"]
+    else:
+        base_query = config.inspire_query or INSPIRE_DEFAULT_QUERY
     if config.inspire_topcite:
         return f"({base_query}) and topcite {config.inspire_topcite}+"
+    if config.inspire_profile:
+        profile = INSPIRE_PROFILES[config.inspire_profile]
+        if profile.get("topcite"):
+            return f"({base_query}) and topcite {profile['topcite']}+"
     return base_query
 
 

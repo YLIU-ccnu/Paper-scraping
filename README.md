@@ -236,6 +236,7 @@ python paper_scraping.py --help
 - `--zotero-library-id`
 - `--zotero-api-key`
 - `--zotero-collection`
+- `--inspire-profile`
 - `--inspire-query`
 - `--inspire-topcite`
 - `--recall-mode {strict,balanced,broad}`
@@ -451,12 +452,45 @@ python paper_scraping.py \
   --source inspire \
   --crawl-mode full \
   --total-results 50 \
-  --inspire-topcite 50 \
+  --inspire-profile classic_seed \
   --output-format csv \
   --output-file papers.csv
 ```
 
 这条路径更适合先建立“小而精”的经典文献库。
+
+当前内置了几组 INSPIRE 模板，放在：
+
+- `ml_physics_crawler/config/inspire_profiles.json`
+
+这些模板现在已经偏向：
+
+- 高能物理
+- 神经网络 / 深度学习
+- 尽量减少纯贝叶斯或泛统计学习噪音
+
+常用模板包括：
+
+- `hep_default`
+- `lhc_ml`
+- `jet_reco_ml`
+- `heavy_ion_ml`
+- `hep_theory_ml`
+- `classic_seed`
+
+例如：
+
+```bash
+python paper_scraping.py \
+  --source inspire \
+  --crawl-mode full \
+  --total-results 50 \
+  --inspire-profile lhc_ml \
+  --output-format csv \
+  --output-file papers.csv
+```
+
+如果你确实想手写 query，仍然可以继续使用 `--inspire-query`。
 
 ### 后续运行
 

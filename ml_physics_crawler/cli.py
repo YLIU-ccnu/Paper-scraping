@@ -72,6 +72,7 @@ def parse_args() -> CrawlConfig:
     parser.add_argument("--zotero-library-id", help="Zotero user id 或 group id。")
     parser.add_argument("--zotero-api-key", help="Zotero API key，也可通过环境变量 ZOTERO_API_KEY 提供。")
     parser.add_argument("--zotero-collection", help="要同步到的 Zotero collection 名称，不存在则自动创建。")
+    parser.add_argument("--inspire-profile", help="INSPIRE 查询模板名称，例如 hep_default、lhc_ml、jet_reco_ml。")
     parser.add_argument("--inspire-query", help="INSPIRE 初始化查询语句，默认使用高能方向经典检索。")
     parser.add_argument("--inspire-topcite", type=int, help="INSPIRE 引用阈值，例如 50 表示 topcite 50+。")
     parser.add_argument(
@@ -133,6 +134,7 @@ def parse_args() -> CrawlConfig:
         zotero_library_id=args.zotero_library_id,
         zotero_api_key=args.zotero_api_key,
         zotero_collection=args.zotero_collection,
+        inspire_profile=args.inspire_profile,
         inspire_query=args.inspire_query,
         inspire_topcite=args.inspire_topcite,
     )
