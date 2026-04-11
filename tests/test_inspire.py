@@ -10,7 +10,7 @@ SAMPLE_INSPIRE = {
             {
                 "metadata": {
                     "titles": [{"title": "Graph Neural Networks for Event Reconstruction at the LHC"}],
-                    "abstracts": [{"value": "We study machine learning for particle physics event reconstruction."}],
+                    "abstracts": [{"value": "We study graph neural networks for particle physics event reconstruction."}],
                     "authors": [{"full_name": "Alice Wang"}, {"full_name": "Bob Li"}],
                     "dois": [{"value": "10.1234/example"}],
                     "arxiv_eprints": [{"value": "2501.00001"}],

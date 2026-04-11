@@ -12,10 +12,31 @@ def clean_text(text: str) -> str:
 
 
 def contains_keywords(text: str, keywords: list[str]) -> bool:
-    lowered = text.lower()
-    return any(keyword.lower() in lowered for keyword in keywords)
+    normalized = normalize_keyword_text(text)
+    return any(keyword_matches(normalized, keyword) for keyword in keywords)
 
 
 def matched_keywords(text: str, keywords: list[str]) -> list[str]:
-    lowered = text.lower()
-    return [keyword for keyword in keywords if keyword.lower() in lowered]
+    normalized = normalize_keyword_text(text)
+    return [keyword for keyword in keywords if keyword_matches(normalized, keyword)]
+
+
+def normalize_keyword_text(text: str) -> str:
+    return clean_text(text).lower()
+
+
+def keyword_matches(normalized_text: str, keyword: str) -> bool:
+    normalized_keyword = normalize_keyword_text(keyword)
+    if not normalized_keyword:
+        return False
+
+    # Use word-boundary matching for acronym-like or phrase keywords to avoid
+    # false positives such as matching "vae" inside unrelated words.
+    if re.fullmatch(r"[\w -]+", normalized_keyword):
+        pattern_body = re.escape(normalized_keyword).replace(r"\ ", r"\s+")
+        if normalized_keyword[-1].isalnum() and not normalized_keyword.endswith("s"):
+            pattern_body += r"s?"
+        pattern = r"\b" + pattern_body + r"\b"
+        return re.search(pattern, normalized_text) is not None
+
+    return normalized_keyword in normalized_text

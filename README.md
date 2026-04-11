@@ -56,6 +56,22 @@ AI 筛选支持成本控制：
 
 默认使用 `borderline`，用于减少模型调用成本。
 
+`INSPIRE` 也支持 AI 审查。当前主流程是先抓取，再统一进入 AI 二次筛选，所以只要你加上 `--enable-ai-filter`，`INSPIRE` 结果和 `arXiv` 结果都会走同一套 AI 审查逻辑。
+
+例如：
+
+```bash
+python paper_scraping.py \
+  --source inspire \
+  --crawl-mode full \
+  --total-results 50 \
+  --inspire-profile classic_seed \
+  --enable-ai-filter \
+  --ai-filter-scope borderline \
+  --output-format csv \
+  --output-file results/papers.csv
+```
+
 
 ### 3. 主题分类与导出
 
@@ -125,7 +141,8 @@ AI 筛选支持成本控制：
 │   ├── text_utils.py
 │   ├── zotero.py
 │   └── config/
-│       └── default_strategy.json
+│       ├── default_strategy.json
+│       └── inspire_profiles.json
 └── tests/
     ├── test_arxiv_parsing.py
     ├── test_core.py
@@ -172,6 +189,41 @@ AI 筛选支持成本控制：
 
 - `ml_physics_crawler/config/default_strategy.json`
   外置策略配置，包含关键词、分类、来源过滤规则、查询项、AI prompt、主题顺序
+
+- `ml_physics_crawler/config/inspire_profiles.json`
+  INSPIRE 查询模板配置，集中管理高能方向初始化 profile
+
+
+## 配置文件说明
+
+配置文件统一放在：
+
+- `ml_physics_crawler/config/`
+
+当前主要有两个：
+
+- `default_strategy.json`
+  适合改“全局规则”，比如：
+  - `ml_keywords`
+  - `science_keywords`
+  - `ml_categories`
+  - `science_categories`
+  - `source_filters`
+  - `arxiv_query_ml_terms`
+  - `inspire_default_query`
+
+- `inspire_profiles.json`
+  适合改 `INSPIRE` 初始化模板，比如：
+  - `classic_seed`
+  - `hep_default`
+  - `lhc_ml`
+  - `jet_reco_ml`
+
+可以这样理解：
+
+- 想改“什么算神经网络/深度学习相关”：改 `default_strategy.json`
+- 想改“INSPIRE 初始化用什么查询模板”：改 `inspire_profiles.json`
+- 想改“某个来源必须满足什么条件才保留”：改 `default_strategy.json` 里的 `source_filters`
 
 
 ## 安装与依赖

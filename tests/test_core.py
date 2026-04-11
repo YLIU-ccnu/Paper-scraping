@@ -24,6 +24,7 @@ from ml_physics_crawler.state import (
     save_records_cache,
     save_run_state,
 )
+from ml_physics_crawler.text_utils import matched_keywords
 
 
 def make_record(title: str, theme: str, ai_score: int | None = None, published: str = "") -> PaperRecord:
@@ -92,6 +93,10 @@ class FilteringTests(unittest.TestCase):
         borderline = make_record("science-paper", "science_application")
         borderline.match_reason = "science_keywords=materials science"
         self.assertTrue(should_apply_ai_filter(borderline, CrawlConfig(enable_ai_filter=True, ai_filter_scope="borderline")))
+
+    def test_matched_keywords_avoids_short_substring_false_positives(self) -> None:
+        text = "Neutrinos from all past core-collapse supernovae could be observed."
+        self.assertEqual(matched_keywords(text, ["vae", "ai", "gan"]), [])
 
 
 class OutputTests(unittest.TestCase):
