@@ -70,6 +70,8 @@ AI 筛选支持成本控制：
 输出时会：
 
 - 统一排序
+- `json` 保留完整详细字段
+- `csv` 只保留适合人工浏览的关键字段
 - 按主题拆分文件
 - 保留总文件
 
@@ -151,7 +153,7 @@ AI 筛选支持成本控制：
   AI 二次筛选与调用范围控制
 
 - `ml_physics_crawler/output.py`
-  导出总文件、主题拆分文件、人工审查 CSV、统一排序
+  导出总文件、主题拆分文件、轻量人工审查 CSV、统一排序
 
 - `ml_physics_crawler/review.py`
   读取和应用人工审查表中的 `approved / rejected / pending` 状态
@@ -169,7 +171,7 @@ AI 筛选支持成本控制：
   内部状态目录、缓存文件、运行状态文件管理
 
 - `ml_physics_crawler/config/default_strategy.json`
-  外置策略配置，包含关键词、分类、查询项、AI prompt、主题顺序
+  外置策略配置，包含关键词、分类、来源过滤规则、查询项、AI prompt、主题顺序
 
 
 ## 安装与依赖

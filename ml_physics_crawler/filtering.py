@@ -3,6 +3,23 @@ from .models import PaperRecord
 from .text_utils import matched_keywords
 
 
+def collect_match_signals(text: str, categories: list[str]) -> dict:
+    matched_ml = matched_keywords(text, ML_KEYWORDS)
+    matched_science = matched_keywords(text, SCIENCE_KEYWORDS)
+    category_has_science = bool(set(categories) & SCIENCE_CATEGORIES)
+    category_has_ml = bool(set(categories) & ML_CATEGORIES)
+    has_science = category_has_science or bool(matched_science)
+    has_ml = category_has_ml or bool(matched_ml)
+    return {
+        "matched_ml": matched_ml,
+        "matched_science": matched_science,
+        "category_has_science": category_has_science,
+        "category_has_ml": category_has_ml,
+        "has_science": has_science,
+        "has_ml": has_ml,
+    }
+
+
 def detect_tags(text: str) -> list[str]:
     lowered = text.lower()
     tags = []
@@ -95,12 +112,13 @@ def classify_theme(
 
 
 def classify_record(text: str, categories: list[str], recall_mode: str) -> tuple[bool, str, list[str], str]:
-    matched_ml = matched_keywords(text, ML_KEYWORDS)
-    matched_science = matched_keywords(text, SCIENCE_KEYWORDS)
-    category_has_science = bool(set(categories) & SCIENCE_CATEGORIES)
-    category_has_ml = bool(set(categories) & ML_CATEGORIES)
-    has_science = category_has_science or bool(matched_science)
-    has_ml = category_has_ml or bool(matched_ml)
+    signals = collect_match_signals(text, categories)
+    matched_ml = signals["matched_ml"]
+    matched_science = signals["matched_science"]
+    category_has_science = signals["category_has_science"]
+    category_has_ml = signals["category_has_ml"]
+    has_science = signals["has_science"]
+    has_ml = signals["has_ml"]
 
     keep = should_keep_record(
         has_science=has_science,

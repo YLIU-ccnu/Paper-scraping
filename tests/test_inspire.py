@@ -48,6 +48,27 @@ class InspireTests(unittest.TestCase):
         self.assertEqual(record.pdf_url, "https://arxiv.org/pdf/2501.00001.pdf")
         self.assertEqual(record.theme, "hybrid")
 
+    def test_parse_inspire_drops_non_ml_hep_records(self) -> None:
+        sample = {
+            "hits": {
+                "hits": [
+                    {
+                        "metadata": {
+                            "titles": [{"title": "Precision measurement of Higgs boson production"}],
+                            "abstracts": [{"value": "We report a high-energy physics measurement at the LHC."}],
+                            "authors": [{"full_name": "Alice Wang"}],
+                            "inspire_categories": [{"term": "hep-ex"}],
+                            "earliest_date": "2025-01-01",
+                            "publication_info": [{"journal_title": "Example Journal"}],
+                        },
+                        "links": {"json": "https://inspirehep.net/api/literature/12345"},
+                    }
+                ]
+            }
+        }
+        records = parse_inspire(sample, CrawlConfig(source="inspire", recall_mode="broad"))
+        self.assertEqual(records, [])
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -1,8 +1,8 @@
 from typing import Any
 
-from .filtering import classify_record, deduplicate
+from .filtering import classify_record, collect_match_signals, deduplicate
 from .models import CrawlConfig, PaperRecord
-from .strategy import HEADERS, INSPIRE_API, INSPIRE_DEFAULT_QUERY, INSPIRE_DEFAULT_TOPCITE, INSPIRE_PROFILES
+from .strategy import HEADERS, INSPIRE_API, INSPIRE_DEFAULT_QUERY, INSPIRE_DEFAULT_TOPCITE, INSPIRE_PROFILES, SOURCE_FILTERS
 
 
 def build_inspire_query(config: CrawlConfig) -> str:
@@ -122,6 +122,7 @@ def safe_get_pdf_url(metadata: dict[str, Any], arxiv_id: str) -> str:
 
 def parse_inspire(data: dict[str, Any], config: CrawlConfig) -> list[PaperRecord]:
     records = []
+    source_filter = SOURCE_FILTERS.get("inspire", {})
     for hit in (data.get("hits") or {}).get("hits", []):
         metadata = hit.get("metadata") or {}
         title = safe_get_first_title(metadata)
@@ -136,6 +137,11 @@ def parse_inspire(data: dict[str, Any], config: CrawlConfig) -> list[PaperRecord
         pdf_url = safe_get_pdf_url(metadata, arxiv_id)
 
         text = f"{title} {abstract} {' '.join(categories)}"
+        signals = collect_match_signals(text, categories)
+        if source_filter.get("require_ml_match") and not signals["has_ml"]:
+            continue
+        if source_filter.get("require_science_match") and not signals["has_science"]:
+            continue
         keep, match_reason, tags, theme = classify_record(text, categories, config.recall_mode)
         if not keep:
             continue

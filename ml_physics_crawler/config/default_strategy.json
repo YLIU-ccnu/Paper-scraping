@@ -21,15 +21,11 @@
     "cs.LG", "stat.ML", "cs.AI"
   ],
   "ml_keywords": [
-    "machine learning", "deep learning", "neural network", "graph neural network", "gnn",
-    "transformer", "normalizing flow", "diffusion model", "generative model", "surrogate model",
-    "simulation-based inference", "bayesian optimization", "reinforcement learning",
+    "deep learning", "neural network", "graph neural network", "gnn",
+    "transformer", "vision transformer", "autoencoder", "variational autoencoder", "vae",
+    "normalizing flow", "diffusion model", "generative model", "generative adversarial network", "gan",
     "representation learning", "self-supervised", "foundation model", "large language model",
-    "artificial intelligence", "ai", "data-driven", "data driven", "surrogate", "emulator",
-    "neural surrogate", "inference network", "likelihood-free inference", "amortized inference",
-    "classifier", "regressor", "denoising", "language model", "vision transformer", "autoencoder",
-    "variational autoencoder", "vae", "generative adversarial network", "gan",
-    "parameter estimation", "uncertainty quantification", "symbolic regression"
+    "language model", "neural surrogate", "inference network", "denoising"
   ],
   "science_keywords": [
     "particle physics", "high energy physics", "nuclear physics", "heavy ion", "heavy-ion",
@@ -61,6 +57,16 @@
   ],
   "inspire_default_query": "hep-ex or hep-ph or hep-th or nucl-ex or nucl-th or hep-lat",
   "inspire_default_topcite": 50,
+  "source_filters": {
+    "inspire": {
+      "require_ml_match": true,
+      "require_science_match": true
+    },
+    "arxiv": {
+      "require_ml_match": false,
+      "require_science_match": false
+    }
+  },
   "ai_filter_system_prompt": "你是严格、保守的科研论文筛选助手，只输出有效 JSON。",
   "ai_filter_user_prompt_template": "你是一个帮助筛选科研论文的助手。请判断下面这篇 arXiv 论文是否与“AI for Science，或具有较强研究价值的 AI 方法论文”相关。\n\n筛选原则：\n1. 如果论文明确研究 AI/ML 方法本身，并且方法具有较强通用性、创新性或潜在科研应用价值，可以保留，即使不只针对高能物理。\n2. 如果论文明确将 AI/ML 用于科学问题，也可以保留。科学范围不限于高能物理，也包括物理、天文、材料、化学、生物、地球科学等。\n3. 如果只是普通领域论文，几乎没有 AI/ML 成分，不保留。\n4. 如果只是普通 AI 应用小改动、缺乏明显方法价值，也可以偏保守处理。\n5. 对边界样本，如果更像“AI for Science”或“值得关注的 AI 方法论”，可以保留。\n\n请只返回 JSON，不要输出额外解释，格式如下：\n{{\n  \"keep\": true,\n  \"score\": 0,\n  \"reason\": \"一句中文理由\"\n}}\n\n其中：\n- keep: 是否保留\n- score: 0 到 100 的相关性评分\n- reason: 简短说明判断依据\n\n论文信息：\n标题: {title}\n作者: {authors}\n分类: {categories}\n标签: {tags}\n粗筛依据: {match_reason}\n摘要: {abstract}",
   "theme_order": {

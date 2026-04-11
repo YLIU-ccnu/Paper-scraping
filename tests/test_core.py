@@ -14,7 +14,7 @@ from ml_physics_crawler.cli import (
 from ml_physics_crawler.filtering import classify_record, should_keep_record
 from ml_physics_crawler.models import CrawlConfig, PaperRecord, RunPlan
 from ml_physics_crawler.pdf import build_pdf_filename, build_pdf_path, select_approved_records
-from ml_physics_crawler.output import build_review_filename, build_theme_filename, sort_records, sort_records_for_review, split_records_by_theme
+from ml_physics_crawler.output import build_review_filename, build_theme_filename, flatten_csv_text, sort_records, sort_records_for_review, split_records_by_theme
 from ml_physics_crawler.review import apply_review_updates, resolve_review_file
 from ml_physics_crawler.zotero import build_record_identity, record_to_zotero_item
 from ml_physics_crawler.state import (
@@ -118,6 +118,48 @@ class OutputTests(unittest.TestCase):
         self.assertEqual(
             build_review_filename("papers.json"),
             "papers.review.csv",
+        )
+
+    def test_flatten_csv_text_removes_newlines_and_tabs(self) -> None:
+        self.assertEqual(flatten_csv_text("a\nb\tc"), "a b c")
+
+    def test_save_to_csv_uses_concise_columns(self) -> None:
+        from ml_physics_crawler.output import save_to_csv
+
+        record = make_record("test-title", "hybrid", 88, "2026-04-11")
+        record.authors = ["Alice", "Bob"]
+        record.journal = "JHEP"
+        record.doi = "10.1000/test"
+        record.pdf_url = "https://example.org/test.pdf"
+        record.review_status = "approved"
+
+        with TemporaryDirectory() as tmpdir:
+            output_file = Path(tmpdir) / "papers.csv"
+            save_to_csv([record], str(output_file))
+            header = output_file.read_text(encoding="utf-8").splitlines()[0]
+
+        self.assertEqual(
+            header,
+            "source,published,theme,ai_score,review_status,title,journal,doi,article_url,pdf_url",
+        )
+
+    def test_save_review_csv_uses_concise_columns(self) -> None:
+        from ml_physics_crawler.output import save_review_csv
+
+        record = make_record("test-title", "hybrid", 88, "2026-04-11")
+        record.authors = ["Alice", "Bob"]
+        record.journal = "JHEP"
+        record.doi = "10.1000/test"
+        record.pdf_url = "https://example.org/test.pdf"
+
+        with TemporaryDirectory() as tmpdir:
+            output_file = Path(tmpdir) / "papers.review.csv"
+            save_review_csv([record], str(output_file))
+            header = output_file.read_text(encoding="utf-8").splitlines()[0]
+
+        self.assertEqual(
+            header,
+            "review_status,review_notes,reviewed_at,theme,ai_score,published,title,journal,doi,article_url,pdf_url",
         )
 
     def test_resolve_review_file(self) -> None:

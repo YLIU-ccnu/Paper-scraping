@@ -6,6 +6,33 @@ from pathlib import Path
 from .models import CrawlConfig, PaperRecord
 from .strategy import THEME_ORDER, THEME_TITLES
 
+CSV_FIELDNAMES = [
+    "source",
+    "published",
+    "theme",
+    "ai_score",
+    "review_status",
+    "title",
+    "journal",
+    "doi",
+    "article_url",
+    "pdf_url",
+]
+
+REVIEW_CSV_FIELDNAMES = [
+    "review_status",
+    "review_notes",
+    "reviewed_at",
+    "theme",
+    "ai_score",
+    "published",
+    "title",
+    "journal",
+    "doi",
+    "article_url",
+    "pdf_url",
+]
+
 
 def sort_records(records: list[PaperRecord]) -> list[PaperRecord]:
     return sorted(
@@ -18,6 +45,12 @@ def sort_records(records: list[PaperRecord]) -> list[PaperRecord]:
         ),
         reverse=False,
     )
+
+
+def flatten_csv_text(value: str) -> str:
+    if not value:
+        return ""
+    return " ".join(str(value).replace("\r", "\n").replace("\t", " ").split())
 
 
 def sort_records_for_review(records: list[PaperRecord]) -> list[PaperRecord]:
@@ -100,84 +133,44 @@ def save_to_json(records: list[PaperRecord], filename: str) -> None:
 
 
 def save_to_csv(records: list[PaperRecord], filename: str) -> None:
-    fieldnames = [
-        "source",
-        "arxiv_id",
-        "title",
-        "authors",
-        "abstract",
-        "journal",
-        "doi",
-        "article_url",
-        "pdf_url",
-        "published",
-        "categories",
-        "theme",
-        "tags",
-        "match_reason",
-        "ai_score",
-        "ai_decision",
-        "ai_reason",
-        "review_status",
-        "review_notes",
-        "reviewed_at",
-    ]
-
     with open(filename, "w", encoding="utf-8", newline="") as file:
-        writer = csv.DictWriter(file, fieldnames=fieldnames)
+        writer = csv.DictWriter(file, fieldnames=CSV_FIELDNAMES)
         writer.writeheader()
         for record in sort_records(records):
-            row = asdict(record)
-            row["authors"] = "; ".join(record.authors)
-            row["categories"] = "; ".join(record.categories)
-            row["tags"] = "; ".join(record.tags)
-            writer.writerow(row)
+            writer.writerow(
+                {
+                    "source": flatten_csv_text(record.source),
+                    "published": flatten_csv_text(record.published),
+                    "theme": flatten_csv_text(record.theme),
+                    "ai_score": record.ai_score,
+                    "review_status": flatten_csv_text(record.review_status),
+                    "title": flatten_csv_text(record.title),
+                    "journal": flatten_csv_text(record.journal),
+                    "doi": flatten_csv_text(record.doi),
+                    "article_url": flatten_csv_text(record.article_url),
+                    "pdf_url": flatten_csv_text(record.pdf_url),
+                }
+            )
 
 
 def save_review_csv(records: list[PaperRecord], filename: str) -> str:
-    fieldnames = [
-        "review_status",
-        "review_notes",
-        "reviewed_at",
-        "theme",
-        "ai_score",
-        "ai_decision",
-        "published",
-        "title",
-        "authors",
-        "categories",
-        "tags",
-        "match_reason",
-        "article_url",
-        "pdf_url",
-        "journal",
-        "doi",
-        "abstract",
-    ]
-
     with open(filename, "w", encoding="utf-8", newline="") as file:
-        writer = csv.DictWriter(file, fieldnames=fieldnames)
+        writer = csv.DictWriter(file, fieldnames=REVIEW_CSV_FIELDNAMES)
         writer.writeheader()
         for record in sort_records_for_review(records):
             writer.writerow(
                 {
-                    "review_status": record.review_status or "pending",
-                    "review_notes": record.review_notes,
-                    "reviewed_at": record.reviewed_at,
-                    "theme": record.theme,
+                    "review_status": flatten_csv_text(record.review_status or "pending"),
+                    "review_notes": flatten_csv_text(record.review_notes),
+                    "reviewed_at": flatten_csv_text(record.reviewed_at),
+                    "theme": flatten_csv_text(record.theme),
                     "ai_score": record.ai_score,
-                    "ai_decision": record.ai_decision,
-                    "published": record.published,
-                    "title": record.title,
-                    "authors": "; ".join(record.authors),
-                    "categories": "; ".join(record.categories),
-                    "tags": "; ".join(record.tags),
-                    "match_reason": record.match_reason,
-                    "article_url": record.article_url,
-                    "pdf_url": record.pdf_url,
-                    "journal": record.journal,
-                    "doi": record.doi,
-                    "abstract": record.abstract,
+                    "published": flatten_csv_text(record.published),
+                    "title": flatten_csv_text(record.title),
+                    "journal": flatten_csv_text(record.journal),
+                    "doi": flatten_csv_text(record.doi),
+                    "article_url": flatten_csv_text(record.article_url),
+                    "pdf_url": flatten_csv_text(record.pdf_url),
                 }
             )
 

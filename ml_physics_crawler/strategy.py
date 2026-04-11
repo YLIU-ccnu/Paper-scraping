@@ -31,6 +31,7 @@ SCIENCE_KEYWORDS = STRATEGY["science_keywords"]
 ARXIV_QUERY_ML_TERMS = STRATEGY["arxiv_query_ml_terms"]
 INSPIRE_DEFAULT_QUERY = STRATEGY["inspire_default_query"]
 INSPIRE_DEFAULT_TOPCITE = STRATEGY["inspire_default_topcite"]
+SOURCE_FILTERS = STRATEGY.get("source_filters", {})
 AI_FILTER_SYSTEM_PROMPT = STRATEGY["ai_filter_system_prompt"]
 AI_FILTER_USER_PROMPT_TEMPLATE = STRATEGY["ai_filter_user_prompt_template"]
 THEME_ORDER = STRATEGY["theme_order"]
