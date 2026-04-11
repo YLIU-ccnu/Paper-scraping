@@ -113,6 +113,7 @@ AI 筛选支持成本控制：
 │   ├── cli.py
 │   ├── constants.py
 │   ├── filtering.py
+│   ├── inspire.py
 │   ├── models.py
 │   ├── output.py
 │   ├── pdf.py
@@ -120,11 +121,13 @@ AI 筛选支持成本控制：
 │   ├── state.py
 │   ├── strategy.py
 │   ├── text_utils.py
+│   ├── zotero.py
 │   └── config/
 │       └── default_strategy.json
 └── tests/
     ├── test_arxiv_parsing.py
-    └── test_core.py
+    ├── test_core.py
+    └── test_inspire.py
 ```
 
 ### 关键模块说明
@@ -137,6 +140,9 @@ AI 筛选支持成本控制：
 
 - `ml_physics_crawler/arxiv.py`
   arXiv 查询构建、请求、XML 解析、时间窗口过滤
+
+- `ml_physics_crawler/inspire.py`
+  INSPIRE 高能方向经典高引初始化抓取与解析
 
 - `ml_physics_crawler/filtering.py`
   粗筛逻辑、主题判定、标签生成、去重
@@ -155,6 +161,9 @@ AI 筛选支持成本控制：
 
 - `ml_physics_crawler/bibtex.py`
   导出 `approved` 论文的 BibTeX，便于手动导入 Zotero
+
+- `ml_physics_crawler/zotero.py`
+  只同步 `approved` 条目的 Zotero 元数据入库与 collection 管理
 
 - `ml_physics_crawler/state.py`
   内部状态目录、缓存文件、运行状态文件管理
