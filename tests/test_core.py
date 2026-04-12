@@ -1,4 +1,5 @@
 import unittest
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
@@ -8,6 +9,7 @@ from ml_physics_crawler.cli import (
     build_manifest_filename,
     build_run_manifest,
     build_run_summary,
+    resolve_total_limit,
     build_summary_filename,
     resolve_run_plan,
 )
@@ -17,6 +19,7 @@ from ml_physics_crawler.mailer import build_email_body, build_email_subject
 from ml_physics_crawler.pdf import build_pdf_filename, build_pdf_path, select_approved_records
 from ml_physics_crawler.output import build_review_filename, build_theme_filename, flatten_csv_text, sort_records, sort_records_for_review, split_records_by_theme
 from ml_physics_crawler.review import apply_review_updates, resolve_review_file
+from ml_physics_crawler.scheduler import should_run_scheduled_update
 from ml_physics_crawler.zotero import build_record_identity, record_to_zotero_item
 from ml_physics_crawler.state import (
     build_records_cache_filename,
@@ -118,6 +121,23 @@ class FilteringTests(unittest.TestCase):
         config = CrawlConfig(source="inspire", mail_subject_prefix="Paper update")
         subject = build_email_subject([make_record("x", "hybrid"), make_record("y", "hybrid")], config)
         self.assertEqual(subject, "Paper update: 2 new inspire papers")
+
+    def test_should_run_scheduled_update_without_state(self) -> None:
+        with TemporaryDirectory() as tmpdir:
+            output_file = str(Path(tmpdir) / "results" / "papers.csv")
+            self.assertTrue(should_run_scheduled_update(output_file, 5))
+
+    def test_should_run_scheduled_update_respects_interval_days(self) -> None:
+        with TemporaryDirectory() as tmpdir:
+            output_file = str(Path(tmpdir) / "results" / "papers.csv")
+            state_file = build_run_state_filename(output_file)
+            now = datetime.now(timezone.utc)
+            save_run_state(
+                {"last_successful_run_at": (now - timedelta(days=3)).isoformat()},
+                state_file,
+            )
+            self.assertFalse(should_run_scheduled_update(output_file, 5, now=now))
+            self.assertTrue(should_run_scheduled_update(output_file, 2, now=now))
 
 
 class OutputTests(unittest.TestCase):
@@ -322,6 +342,37 @@ class OutputTests(unittest.TestCase):
     def test_resolve_run_plan_incremental_rejects_inspire(self) -> None:
         with self.assertRaises(RuntimeError):
             resolve_run_plan(CrawlConfig(output_file="papers.json", crawl_mode="incremental", source="inspire"))
+
+    def test_resolve_run_plan_auto_with_cache_allows_unlimited_incremental(self) -> None:
+        with TemporaryDirectory() as tmpdir:
+            output_file = str(Path(tmpdir) / "papers.json")
+            cache_file = build_records_cache_filename(output_file)
+            save_records_cache([make_record("cached-paper", "hybrid")], cache_file)
+            config = CrawlConfig(
+                output_file=output_file,
+                crawl_mode="auto",
+                no_total_limit=True,
+                incremental_days_back=5,
+            )
+
+            plan = resolve_run_plan(config)
+
+            self.assertEqual(plan.mode, "incremental")
+            self.assertIsNone(plan.crawl_config.total_results)
+
+    def test_resolve_total_limit_only_disables_limit_for_time_window_arxiv(self) -> None:
+        self.assertIsNone(
+            resolve_total_limit(
+                CrawlConfig(source="arxiv", no_total_limit=True, since_date="2026-04-01T00:00:00+00:00")
+            )
+        )
+        self.assertEqual(
+            resolve_total_limit(
+                CrawlConfig(source="arxiv", no_total_limit=True, total_results=300),
+                1000,
+            ),
+            1000,
+        )
 
     def test_resolve_run_plan_prefers_since_date_from_state(self) -> None:
         with TemporaryDirectory() as tmpdir:

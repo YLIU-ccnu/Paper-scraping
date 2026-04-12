@@ -165,22 +165,41 @@ def parse_arxiv(xml_text: str, config: CrawlConfig) -> list[PaperRecord]:
     return records
 
 
+def count_arxiv_entries(xml_text: str) -> int:
+    root = ET.fromstring(xml_text)
+    return len(root.findall("atom:entry", NS))
+
+
 def crawl_arxiv(config: CrawlConfig) -> list[PaperRecord]:
     records = []
-
-    for start in range(0, config.total_results, config.batch_size):
-        batch_max_results = min(config.batch_size, config.total_results - start)
+    start = 0
+    while True:
+        if config.total_results is None:
+            batch_max_results = config.batch_size
+        else:
+            if start >= config.total_results:
+                break
+            batch_max_results = min(config.batch_size, config.total_results - start)
         print(f"[arXiv] fetching {start} - {start + batch_max_results}")
         try:
             xml_text = fetch_arxiv_batch(start=start, max_results=batch_max_results, config=config)
+            fetched_entry_count = count_arxiv_entries(xml_text)
             batch_records = parse_arxiv(xml_text, config)
             print(f"[arXiv] kept {len(batch_records)}")
             records.extend(batch_records)
         except Exception as exc:
             print(f"[arXiv] skipped batch {start}: {exc}")
+            break
 
         next_start = start + batch_max_results
-        if next_start < config.total_results and config.sleep_seconds > 0:
+        if config.total_results is None:
+            if fetched_entry_count < batch_max_results:
+                break
+        elif next_start >= config.total_results:
+            break
+
+        start = next_start
+        if config.sleep_seconds > 0:
             time.sleep(config.sleep_seconds)
 
     return deduplicate(records)

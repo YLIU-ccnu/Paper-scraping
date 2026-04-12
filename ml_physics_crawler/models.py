@@ -6,7 +6,8 @@ class CrawlConfig:
     process_approved: bool = False
     source: str = "arxiv"
     crawl_mode: str = "auto"
-    total_results: int = 300
+    total_results: int | None = 300
+    no_total_limit: bool = False
     bootstrap_total_results: int = 1000
     incremental_total_results: int = 300
     batch_size: int = 100

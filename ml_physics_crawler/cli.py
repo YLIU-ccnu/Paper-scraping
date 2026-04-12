@@ -34,6 +34,7 @@ def parse_args() -> CrawlConfig:
     parser.add_argument("--process-approved", action="store_true", help="不重新抓取，只读取本地缓存和审查表，处理 approved 记录。")
     parser.add_argument("--source", choices=["arxiv", "inspire"], default="arxiv", help="抓取来源：arxiv 用于追新，inspire 适合高能方向经典高引用初始化。")
     parser.add_argument("--total-results", type=int, default=300, help="总共抓取多少条 arXiv 结果。")
+    parser.add_argument("--no-total-limit", action="store_true", help="取消抓取条数上限；在按时间窗抓取时会尽量抓完整个时间范围。")
     parser.add_argument(
         "--crawl-mode",
         choices=["auto", "full", "incremental"],
@@ -141,6 +142,7 @@ def parse_args() -> CrawlConfig:
         source=args.source,
         crawl_mode=args.crawl_mode,
         total_results=args.total_results,
+        no_total_limit=args.no_total_limit,
         bootstrap_total_results=args.bootstrap_total_results,
         incremental_total_results=args.incremental_total_results,
         batch_size=args.batch_size,
@@ -180,6 +182,15 @@ def parse_args() -> CrawlConfig:
     )
 
 
+def resolve_total_limit(config: CrawlConfig, default_limit: int | None = None) -> int | None:
+    has_time_window = config.since_date is not None or config.days_back is not None
+    if config.no_total_limit and config.source == "arxiv" and has_time_window:
+        return None
+    if default_limit is not None:
+        return default_limit
+    return config.total_results
+
+
 def resolve_run_plan(config: CrawlConfig) -> RunPlan:
     cache_file = build_records_cache_filename(config.output_file)
     state_file = build_run_state_filename(config.output_file)
@@ -205,7 +216,14 @@ def resolve_run_plan(config: CrawlConfig) -> RunPlan:
                 mode="incremental",
                 crawl_config=replace(
                     config,
-                    total_results=config.incremental_total_results,
+                    total_results=resolve_total_limit(
+                        replace(
+                            config,
+                            days_back=None if since_date else (config.days_back if config.days_back is not None else config.incremental_days_back),
+                            since_date=since_date,
+                        ),
+                        config.incremental_total_results,
+                    ),
                     days_back=None if since_date else (config.days_back if config.days_back is not None else config.incremental_days_back),
                     since_date=since_date,
                 ),
@@ -234,6 +252,13 @@ def resolve_run_plan(config: CrawlConfig) -> RunPlan:
             mode="incremental",
             crawl_config=replace(
                 config,
+                total_results=resolve_total_limit(
+                    replace(
+                        config,
+                        days_back=None if since_date else (config.days_back if config.days_back is not None else config.incremental_days_back),
+                        since_date=since_date,
+                    )
+                ),
                 days_back=None if since_date else (config.days_back if config.days_back is not None else config.incremental_days_back),
                 since_date=since_date,
             ),

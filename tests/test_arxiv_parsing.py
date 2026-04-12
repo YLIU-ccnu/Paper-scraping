@@ -43,6 +43,12 @@ SAMPLE_FEED = """<?xml version="1.0" encoding="UTF-8"?>
 </feed>
 """
 
+EMPTY_FEED = """<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom"
+      xmlns:arxiv="http://arxiv.org/schemas/atom">
+</feed>
+"""
+
 
 class ArxivParsingTests(unittest.TestCase):
     def test_parse_arxiv_extracts_expected_fields(self) -> None:
@@ -119,6 +125,20 @@ class ArxivParsingTests(unittest.TestCase):
             records = crawl_arxiv(CrawlConfig(total_results=1, batch_size=100, sleep_seconds=0, recall_mode="balanced"))
 
         self.assertEqual(requested_max_results, [1])
+        self.assertEqual(len(records), 1)
+
+    def test_crawl_arxiv_without_total_limit_continues_until_empty_batch(self) -> None:
+        requested_starts = []
+        feeds = [SAMPLE_FEED, EMPTY_FEED]
+
+        def fake_fetch_arxiv_batch(start: int, max_results: int, config: CrawlConfig) -> str:
+            requested_starts.append((start, max_results))
+            return feeds.pop(0)
+
+        with patch("ml_physics_crawler.arxiv.fetch_arxiv_batch", side_effect=fake_fetch_arxiv_batch):
+            records = crawl_arxiv(CrawlConfig(total_results=None, batch_size=2, sleep_seconds=0, recall_mode="balanced"))
+
+        self.assertEqual(requested_starts, [(0, 2), (2, 2)])
         self.assertEqual(len(records), 1)
 
 
