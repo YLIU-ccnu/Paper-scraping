@@ -13,6 +13,7 @@ from ml_physics_crawler.cli import (
 )
 from ml_physics_crawler.filtering import classify_record, should_keep_record
 from ml_physics_crawler.models import CrawlConfig, PaperRecord, RunPlan
+from ml_physics_crawler.mailer import build_email_body, build_email_subject
 from ml_physics_crawler.pdf import build_pdf_filename, build_pdf_path, select_approved_records
 from ml_physics_crawler.output import build_review_filename, build_theme_filename, flatten_csv_text, sort_records, sort_records_for_review, split_records_by_theme
 from ml_physics_crawler.review import apply_review_updates, resolve_review_file
@@ -97,6 +98,26 @@ class FilteringTests(unittest.TestCase):
     def test_matched_keywords_avoids_short_substring_false_positives(self) -> None:
         text = "Neutrinos from all past core-collapse supernovae could be observed."
         self.assertEqual(matched_keywords(text, ["vae", "ai", "gan"]), [])
+
+    def test_build_email_body_contains_expected_fields(self) -> None:
+        record = make_record("Graph Neural Networks for Event Reconstruction", "hybrid", published="2026-04-12")
+        record.authors = ["Alice", "Bob"]
+        record.abstract = "We study graph neural networks for event reconstruction."
+        record.pdf_url = "https://arxiv.org/pdf/2501.00001.pdf"
+        config = CrawlConfig(source="arxiv", mail_subject_prefix="Paper update")
+
+        body = build_email_body([record], config, "Run summary:\n- total records: 1")
+
+        self.assertIn("theme: hybrid", body)
+        self.assertIn("title: Graph Neural Networks for Event Reconstruction", body)
+        self.assertIn("authors: Alice, Bob", body)
+        self.assertIn("abstract: We study graph neural networks for event reconstruction.", body)
+        self.assertIn("pdf_url: https://arxiv.org/pdf/2501.00001.pdf", body)
+
+    def test_build_email_subject_uses_source_and_count(self) -> None:
+        config = CrawlConfig(source="inspire", mail_subject_prefix="Paper update")
+        subject = build_email_subject([make_record("x", "hybrid"), make_record("y", "hybrid")], config)
+        self.assertEqual(subject, "Paper update: 2 new inspire papers")
 
 
 class OutputTests(unittest.TestCase):

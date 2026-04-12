@@ -1,5 +1,6 @@
 import argparse
 import json
+import os
 from collections import Counter
 from dataclasses import asdict, replace
 from datetime import datetime, timedelta, timezone
@@ -11,6 +12,7 @@ from .bibtex import build_approved_bibtex_filename, export_approved_bibtex
 from .filtering import deduplicate
 from .inspire import crawl_inspire
 from .models import CrawlConfig, PaperRecord, RunPlan
+from .mailer import send_update_email
 from .output import save_records
 from .pdf import download_approved_pdfs
 from .review import apply_review_updates, resolve_review_file
@@ -75,6 +77,14 @@ def parse_args() -> CrawlConfig:
     parser.add_argument("--inspire-profile", help="INSPIRE 查询模板名称，例如 hep_default、lhc_ml、jet_reco_ml。")
     parser.add_argument("--inspire-query", help="INSPIRE 初始化查询语句，默认使用高能方向经典检索。")
     parser.add_argument("--inspire-topcite", type=int, help="INSPIRE 引用阈值，例如 50 表示 topcite 50+。")
+    parser.add_argument("--enable-email-notification", action="store_true", help="抓取完成后发送邮件提醒。")
+    parser.add_argument("--smtp-host", help="SMTP 服务器地址，也可通过环境变量 SMTP_HOST 提供。")
+    parser.add_argument("--smtp-port", type=int, default=587, help="SMTP 端口，默认 587。")
+    parser.add_argument("--smtp-user", help="SMTP 用户名，也可通过环境变量 SMTP_USER 提供。")
+    parser.add_argument("--smtp-password", help="SMTP 密码，也可通过环境变量 SMTP_PASSWORD 提供。")
+    parser.add_argument("--mail-from", help="发件人地址，也可通过环境变量 MAIL_FROM 提供。")
+    parser.add_argument("--mail-to", help="收件人地址，也可通过环境变量 MAIL_TO 提供。")
+    parser.add_argument("--mail-subject-prefix", default="Paper update", help="邮件主题前缀。")
     parser.add_argument(
         "--recall-mode",
         choices=["strict", "balanced", "broad"],
@@ -103,6 +113,28 @@ def parse_args() -> CrawlConfig:
         parser.error("--timeout 必须大于 0")
     if not 0 <= args.ai_min_score <= 100:
         parser.error("--ai-min-score 必须在 0 到 100 之间")
+    if args.smtp_port <= 0:
+        parser.error("--smtp-port 必须大于 0")
+
+    smtp_host = args.smtp_host or os.getenv("SMTP_HOST")
+    smtp_user = args.smtp_user or os.getenv("SMTP_USER")
+    smtp_password = args.smtp_password or os.getenv("SMTP_PASSWORD")
+    mail_from = args.mail_from or os.getenv("MAIL_FROM")
+    mail_to = args.mail_to or os.getenv("MAIL_TO")
+    if args.enable_email_notification:
+        missing = [
+            name
+            for name, value in [
+                ("SMTP_HOST", smtp_host),
+                ("SMTP_USER", smtp_user),
+                ("SMTP_PASSWORD", smtp_password),
+                ("MAIL_FROM", mail_from),
+                ("MAIL_TO", mail_to),
+            ]
+            if not value
+        ]
+        if missing:
+            parser.error(f"启用邮件提醒时缺少配置：{', '.join(missing)}")
 
     return CrawlConfig(
         process_approved=args.process_approved,
@@ -137,6 +169,14 @@ def parse_args() -> CrawlConfig:
         inspire_profile=args.inspire_profile,
         inspire_query=args.inspire_query,
         inspire_topcite=args.inspire_topcite,
+        enable_email_notification=args.enable_email_notification,
+        smtp_host=smtp_host,
+        smtp_port=args.smtp_port,
+        smtp_user=smtp_user,
+        smtp_password=smtp_password,
+        mail_from=mail_from,
+        mail_to=mail_to,
+        mail_subject_prefix=args.mail_subject_prefix,
     )
 
 
@@ -394,6 +434,9 @@ def run(config: CrawlConfig) -> int:
         print(f"Downloaded approved PDFs: {len(downloaded_pdf_files)}")
     if zotero_result:
         print(f"Synced approved items to Zotero: created={zotero_result.get('created', 0)}, skipped={zotero_result.get('skipped', 0)}")
+    if config.enable_email_notification:
+        send_update_email(fetched_records, plan.crawl_config, summary)
+        print(f"Sent email notification to: {plan.crawl_config.mail_to}")
     return 0
 
 

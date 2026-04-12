@@ -36,6 +36,14 @@ class CrawlConfig:
     inspire_profile: str | None = None
     inspire_query: str | None = None
     inspire_topcite: int | None = None
+    enable_email_notification: bool = False
+    smtp_host: str | None = None
+    smtp_port: int = 587
+    smtp_user: str | None = None
+    smtp_password: str | None = None
+    mail_from: str | None = None
+    mail_to: str | None = None
+    mail_subject_prefix: str = "Paper update"
 
 
 @dataclass

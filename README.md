@@ -132,6 +132,7 @@ python paper_scraping.py \
 │   ├── constants.py
 │   ├── filtering.py
 │   ├── inspire.py
+│   ├── mailer.py
 │   ├── models.py
 │   ├── output.py
 │   ├── pdf.py
@@ -162,6 +163,9 @@ python paper_scraping.py \
 
 - `ml_physics_crawler/inspire.py`
   INSPIRE 高能方向经典高引初始化抓取与解析
+
+- `ml_physics_crawler/mailer.py`
+  发送抓取完成后的邮件提醒，正文列出本次新增论文的关键信息
 
 - `ml_physics_crawler/filtering.py`
   粗筛逻辑、主题判定、标签生成、去重
@@ -290,6 +294,14 @@ python paper_scraping.py --help
 - `--zotero-library-id`
 - `--zotero-api-key`
 - `--zotero-collection`
+- `--enable-email-notification`
+- `--smtp-host`
+- `--smtp-port`
+- `--smtp-user`
+- `--smtp-password`
+- `--mail-from`
+- `--mail-to`
+- `--mail-subject-prefix`
 - `--inspire-profile`
 - `--inspire-query`
 - `--inspire-topcite`
@@ -312,6 +324,38 @@ python paper_scraping.py \
   --output-format json \
   --output-file papers.json
 ```
+
+
+### 示例 3：启用邮件提醒
+
+推荐通过环境变量提供 SMTP 配置：
+
+```bash
+export SMTP_HOST=smtp.example.com
+export SMTP_USER=your_email@example.com
+export SMTP_PASSWORD=your_app_password
+export MAIL_FROM=your_email@example.com
+export MAIL_TO=your_email@example.com
+```
+
+然后运行：
+
+```bash
+python paper_scraping.py \
+  --source arxiv \
+  --crawl-mode incremental \
+  --output-format csv \
+  --output-file results/papers.csv \
+  --enable-email-notification
+```
+
+邮件正文会按“本次新增”逐篇列出：
+
+- `theme`
+- `title`
+- `authors`
+- `abstract`
+- `pdf_url`
 
 
 ### 示例 3：强制增量抓取最近 14 天
